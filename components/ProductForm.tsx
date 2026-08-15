@@ -73,6 +73,7 @@ export default function ProductForm({
       name: String(form.get("name") || "").trim(),
       price: Number(form.get("price")),
       category: String(form.get("category") || "").trim(),
+      description: String(form.get("description") || "").trim(),
       image,
     };
 
@@ -144,6 +145,14 @@ export default function ProductForm({
             <option key={cat} value={cat} />
           ))}
         </datalist>
+
+        <label className="mb-1.5 mt-4 text-sm font-bold">وصف المنتج</label>
+        <textarea
+          name="description"
+          defaultValue={product?.description}
+          placeholder="اكتب تفاصيل عن المنتج، المقاس، الخامة، إلخ..."
+          className="min-h-[100px] resize-y rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+        />
 
         <label className="mb-1.5 mt-4 text-sm font-bold">صورة المنتج</label>
         <label

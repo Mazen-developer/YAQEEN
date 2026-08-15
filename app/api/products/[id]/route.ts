@@ -23,7 +23,7 @@ export async function PUT(
   }
 
   const body = await req.json();
-  const { name, price, image, category } = body ?? {};
+  const { name, price, image, category, description } = body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "اسم المنتج مطلوب" }, { status: 400 });
@@ -43,6 +43,7 @@ export async function PUT(
     name: name.trim(),
     price: parsedPrice,
     category: category.trim(),
+    description: typeof description === "string" ? description.trim() : "",
     image,
   });
   if (!product) {

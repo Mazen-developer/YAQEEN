@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/types";
 import { useCart } from "./CartProvider";
@@ -14,16 +15,18 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition hover:-translate-y-1">
-      <div className="aspect-square overflow-hidden bg-neutral-100">
+      <Link href={`/product/${product.id}`} className="block aspect-square overflow-hidden bg-neutral-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={product.image}
           alt={product.name}
           className="h-full w-full object-cover"
         />
-      </div>
+      </Link>
       <div className="flex flex-1 flex-col gap-3 p-4">
-        <h3 className="text-lg font-bold leading-snug">{product.name}</h3>
+        <Link href={`/product/${product.id}`}>
+          <h3 className="text-lg font-bold leading-snug transition hover:underline">{product.name}</h3>
+        </Link>
 
         <span className="self-start rounded-full bg-black/[0.06] px-2.5 py-0.5 text-xs font-bold text-neutral-600">
           {categoryOf(product.category)}

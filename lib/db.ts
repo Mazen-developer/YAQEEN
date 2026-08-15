@@ -1,26 +1,46 @@
+import { Redis } from "@upstash/redis";
 import fs from "fs/promises";
 import path from "path";
 import type { Product, Order } from "./types";
 
-type DB = {
-  products: Product[];
-  orders: Order[];
-};
+/**
+ * تخزين البيانات:
+ * - لو متغيرات البيئة UPSTASH_REDIS_REST_URL و UPSTASH_REDIS_REST_TOKEN موجودة،
+ *   البيانات بتتخزن في Upstash Redis (سحابي، مشترك بين كل الأجهزة والزيارات).
+ * - لو مش موجودة (زي أول تشغيل محلي على جهازك)، بيرجع تلقائيًا للتخزين في
+ *   ملف data/db.json على السيرفر (يشتغل بس للتجربة المحلية، مش على Vercel).
+ *
+ * راجع README.md لخطوات تفعيل Redis (٥ دقائق، مجاني).
+ */
+
+const hasRedis =
+  !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+
+const redis = hasRedis
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL as string,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN as string,
+    })
+  : null;
+
+/* ---------- fallback: local JSON file (للتجربة المحلية فقط) ---------- */
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
 
-async function ensureDb(): Promise<void> {
+type LocalDB = { products: Product[]; orders: Order[] };
+
+async function ensureLocalDb(): Promise<void> {
   try {
     await fs.access(DB_PATH);
   } catch {
     await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
-    const empty: DB = { products: [], orders: [] };
+    const empty: LocalDB = { products: [], orders: [] };
     await fs.writeFile(DB_PATH, JSON.stringify(empty, null, 2), "utf-8");
   }
 }
 
-async function readDb(): Promise<DB> {
-  await ensureDb();
+async function readLocalDb(): Promise<LocalDB> {
+  await ensureLocalDb();
   const raw = await fs.readFile(DB_PATH, "utf-8");
   try {
     const parsed = JSON.parse(raw);
@@ -33,33 +53,57 @@ async function readDb(): Promise<DB> {
   }
 }
 
-async function writeDb(db: DB): Promise<void> {
+async function writeLocalDb(db: LocalDB): Promise<void> {
   await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2), "utf-8");
+}
+
+function cryptoRandomId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
 /* ---------- products ---------- */
 
 export async function getProducts(): Promise<Product[]> {
-  const db = await readDb();
+  if (redis) {
+    const ids = (await redis.smembers("products:index")) as string[];
+    if (!ids.length) return [];
+    const products = await Promise.all(
+      ids.map((id) => redis.get<Product>(`product:${id}`))
+    );
+    return products
+      .filter((p): p is Product => !!p)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+  const db = await readLocalDb();
   return db.products.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
-  const db = await readDb();
+  if (redis) {
+    return (await redis.get<Product>(`product:${id}`)) ?? null;
+  }
+  const db = await readLocalDb();
   return db.products.find((p) => p.id === id) ?? null;
 }
 
 export async function createProduct(
   input: Omit<Product, "id" | "createdAt">
 ): Promise<Product> {
-  const db = await readDb();
   const product: Product = {
     id: cryptoRandomId(),
     createdAt: Date.now(),
     ...input,
   };
+
+  if (redis) {
+    await redis.set(`product:${product.id}`, product);
+    await redis.sadd("products:index", product.id);
+    return product;
+  }
+
+  const db = await readLocalDb();
   db.products.push(product);
-  await writeDb(db);
+  await writeLocalDb(db);
   return product;
 }
 
@@ -67,43 +111,72 @@ export async function updateProduct(
   id: string,
   input: Partial<Omit<Product, "id" | "createdAt">>
 ): Promise<Product | null> {
-  const db = await readDb();
+  if (redis) {
+    const existing = await redis.get<Product>(`product:${id}`);
+    if (!existing) return null;
+    const updated: Product = { ...existing, ...input };
+    await redis.set(`product:${id}`, updated);
+    return updated;
+  }
+
+  const db = await readLocalDb();
   const idx = db.products.findIndex((p) => p.id === id);
   if (idx === -1) return null;
   db.products[idx] = { ...db.products[idx], ...input };
-  await writeDb(db);
+  await writeLocalDb(db);
   return db.products[idx];
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
-  const db = await readDb();
+  if (redis) {
+    const existing = await redis.get<Product>(`product:${id}`);
+    if (!existing) return false;
+    await redis.del(`product:${id}`);
+    await redis.srem("products:index", id);
+    return true;
+  }
+
+  const db = await readLocalDb();
   const before = db.products.length;
   db.products = db.products.filter((p) => p.id !== id);
-  await writeDb(db);
+  await writeLocalDb(db);
   return db.products.length < before;
 }
 
 /* ---------- orders ---------- */
 
 export async function getOrders(): Promise<Order[]> {
-  const db = await readDb();
+  if (redis) {
+    const ids = (await redis.smembers("orders:index")) as string[];
+    if (!ids.length) return [];
+    const orders = await Promise.all(
+      ids.map((id) => redis.get<Order>(`order:${id}`))
+    );
+    return orders
+      .filter((o): o is Order => !!o)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+  const db = await readLocalDb();
   return db.orders.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function createOrder(
   input: Omit<Order, "id" | "createdAt">
 ): Promise<Order> {
-  const db = await readDb();
   const order: Order = {
     id: cryptoRandomId(),
     createdAt: Date.now(),
     ...input,
   };
-  db.orders.push(order);
-  await writeDb(db);
-  return order;
-}
 
-function cryptoRandomId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  if (redis) {
+    await redis.set(`order:${order.id}`, order);
+    await redis.sadd("orders:index", order.id);
+    return order;
+  }
+
+  const db = await readLocalDb();
+  db.orders.push(order);
+  await writeLocalDb(db);
+  return order;
 }

@@ -1,5 +1,5 @@
 import { getProducts } from "@/lib/db";
-import ProductCard from "@/components/ProductCard";
+import ProductsSection from "@/components/ProductsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -7,27 +7,34 @@ export default async function HomePage() {
   const products = await getProducts();
 
   return (
-    <div className="">
-      <div className="mb-8 text-center ">
-        <h2 className="font-display text-4xl text-black">أهلاً بيك في YAQEEN</h2>
-        <div className="mx-auto my-3.5 h-[3px] w-16 rounded bg-black" />
-        <p className="text-sm text-neutral-600">
-          منتجات مختارة بعناية — اطلب دلوقتي وهيوصلك
-        </p>
+    <div>
+      <section className="relative left-1/2 right-1/2 -mx-[50vw] -mt-8 h-screen w-screen overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/hero.jpg"
+          alt="ركن هادئ في البيت بديكور دافئ"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-black/10" />
+
+        <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center text-white">
+          <h2 className="font-display text-5xl drop-shadow-md sm:text-6xl">أهلاً بيك في YAQEEN</h2>
+          <div className="my-4 h-[3px] w-16 rounded bg-white" />
+          <p className="max-w-md text-sm text-white/90 sm:text-base">
+            منتجات مختارة بعناية — اطلب دلوقتي وهيوصلك لحد باب البيت
+          </p>
+          <a
+            href="#products"
+            className="mt-8 inline-block rounded-full bg-white px-8 py-3 text-sm font-black text-black transition hover:bg-neutral-200"
+          >
+            ابدأ التسوق 🛍️
+          </a>
+        </div>
+      </section>
+
+      <div id="products" className="scroll-mt-24 pt-10">
+        <ProductsSection products={products} />
       </div>
-
-      {products.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-line bg-white/60 py-16 text-center text-neutral-600">
-          <div className="mb-1 font-display text-2xl text-black">الرفوف لسه فاضية</div>
-
-        </div>
-      ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-5">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ export type Product = {
   name: string;
   price: number;
   image: string; // data URL (base64)
+  category?: string;
   createdAt: number;
 };
 

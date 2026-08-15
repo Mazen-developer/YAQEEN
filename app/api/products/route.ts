@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, price, image } = body ?? {};
+  const { name, price, image, category } = body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "اسم المنتج مطلوب" }, { status: 400 });
@@ -23,6 +23,9 @@ export async function POST(req: NextRequest) {
   if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
     return NextResponse.json({ error: "سعر غير صالح" }, { status: 400 });
   }
+  if (!category || typeof category !== "string" || !category.trim()) {
+    return NextResponse.json({ error: "تصنيف المنتج مطلوب" }, { status: 400 });
+  }
   if (!image || typeof image !== "string" || !image.startsWith("data:image")) {
     return NextResponse.json({ error: "صورة المنتج مطلوبة" }, { status: 400 });
   }
@@ -30,6 +33,7 @@ export async function POST(req: NextRequest) {
   const product = await createProduct({
     name: name.trim(),
     price: parsedPrice,
+    category: category.trim(),
     image,
   });
   return NextResponse.json({ product }, { status: 201 });

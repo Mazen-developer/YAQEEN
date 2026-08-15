@@ -23,7 +23,7 @@ export async function PUT(
   }
 
   const body = await req.json();
-  const { name, price, image } = body ?? {};
+  const { name, price, image, category } = body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "اسم المنتج مطلوب" }, { status: 400 });
@@ -32,6 +32,9 @@ export async function PUT(
   if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
     return NextResponse.json({ error: "سعر غير صالح" }, { status: 400 });
   }
+  if (!category || typeof category !== "string" || !category.trim()) {
+    return NextResponse.json({ error: "تصنيف المنتج مطلوب" }, { status: 400 });
+  }
   if (!image || typeof image !== "string") {
     return NextResponse.json({ error: "صورة المنتج مطلوبة" }, { status: 400 });
   }
@@ -39,6 +42,7 @@ export async function PUT(
   const product = await updateProduct(params.id, {
     name: name.trim(),
     price: parsedPrice,
+    category: category.trim(),
     image,
   });
   if (!product) {

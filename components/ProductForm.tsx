@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Product } from "@/lib/types";
+import { SUGGESTED_CATEGORIES } from "@/lib/categories";
 
 function fileToCompressedDataURL(file: File, maxW = 700, quality = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -71,6 +72,7 @@ export default function ProductForm({
     const payload = {
       name: String(form.get("name") || "").trim(),
       price: Number(form.get("price")),
+      category: String(form.get("category") || "").trim(),
       image,
     };
 
@@ -126,6 +128,22 @@ export default function ProductForm({
           placeholder="0.00"
           className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
         />
+
+        <label className="mb-1.5 mt-4 text-sm font-bold">تصنيف المنتج</label>
+        <input
+          name="category"
+          type="text"
+          required
+          list="category-suggestions"
+          defaultValue={product?.category}
+          placeholder="مثال: إلكترونيات"
+          className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+        />
+        <datalist id="category-suggestions">
+          {SUGGESTED_CATEGORIES.map((cat) => (
+            <option key={cat} value={cat} />
+          ))}
+        </datalist>
 
         <label className="mb-1.5 mt-4 text-sm font-bold">صورة المنتج</label>
         <label

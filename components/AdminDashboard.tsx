@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
+import { categoryOf } from "@/lib/categories";
 import { useAdminPassword } from "@/lib/useAdminPassword";
 import type { Order, Product } from "@/lib/types";
 
@@ -128,6 +129,9 @@ export default function AdminDashboard({ password }: { password: string }) {
               <img src={p.image} alt={p.name} className="aspect-square w-full object-cover" />
               <div className="p-2.5">
                 <h4 className="mb-1 text-sm font-bold">{p.name}</h4>
+                <span className="mb-1.5 mr-1 inline-block rounded-full bg-black/[0.06] px-2 py-0.5 text-[10px] font-bold text-neutral-600">
+                  {categoryOf(p.category)}
+                </span>
                 <span className="-rotate-2 inline-block rounded-l-sm rounded-r-lg border-[1.5px] border-dashed border-black/55 bg-white px-3 py-1 text-xs font-black">
                   {formatPrice(p.price)}
                 </span>

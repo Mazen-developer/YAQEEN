@@ -4,6 +4,7 @@ import "./globals.css";
 import { CartProvider } from "@/components/CartProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import Header from "@/components/Header";
+import SocialLinks from "@/components/SocialLinks";
 
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
@@ -35,9 +36,9 @@ export default function RootLayout({
           <CartProvider>
             <Header />
             <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">{children}</main>
-            <footer className="py-6 text-center text-xs text-neutral-500">
-             <div>              
-             </div>
+            <footer className="py-8 text-center text-xs text-neutral-500">
+              <SocialLinks />
+              <div className="mt-4">تابعونا</div>
             </footer>
           </CartProvider>
         </ToastProvider>

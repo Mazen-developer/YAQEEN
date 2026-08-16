@@ -40,8 +40,8 @@ export default function ProductsSection({ products }: { products: Product[] }) {
             onClick={() => setActive(cat)}
             className={`rounded-full border-[1.5px] px-4 py-1.5 text-sm font-bold transition ${
               active === cat
-                ? "border-black bg-black text-white"
-                : "border-line text-black hover:border-black"
+                ? "border-brand-600 bg-brand-600 text-white"
+                : "border-line text-black hover:border-brand-500 hover:text-brand-700"
             }`}
           >
             {cat}

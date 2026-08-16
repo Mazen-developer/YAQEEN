@@ -1,3 +1,15 @@
+export type ColorOption = {
+  name: string;
+  hex?: string;
+};
+
+export type ProductOptions = {
+  colors: ColorOption[];
+  sizes: string[];
+  types: string[];
+  minQuantity: number;
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -6,11 +18,13 @@ export type Product = {
   category?: string;
   description?: string;
   createdAt: number;
-  colors?: string[];
-  sizes?: string[];
-  types?: string[];
-  stock?: number; // العدد المتاح
-  minOrderQty?: number; // أقل عدد يمكن طلبه
+  options?: ProductOptions;
+};
+
+export type SelectedVariant = {
+  color?: string;
+  size?: string;
+  type?: string;
 };
 
 export type OrderItem = {
@@ -18,9 +32,7 @@ export type OrderItem = {
   name: string;
   price: number;
   qty: number;
-  color?: string;
-  size?: string;
-  type?: string;
+  variant?: SelectedVariant;
 };
 
 export type Order = {
@@ -35,19 +47,20 @@ export type Order = {
 };
 
 export type CartLine = {
-  lineKey: string;
+  /** unique per product+variant combination */
+  lineId: string;
+  /** the underlying product id */
   id: string;
   qty: number;
-  color?: string;
-  size?: string;
-  type?: string;
+  variant?: SelectedVariant;
 };
 
 export type Review = {
   id: string;
   productId: string;
-  rating: number; // 1 - 5
+  userId: string;
+  userName: string;
+  rating: number; // 1-5
   comment: string;
-  name?: string;
   createdAt: number;
 };

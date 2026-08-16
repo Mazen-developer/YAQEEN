@@ -6,11 +6,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const reviews = await getReviews(params.id);
-  const average =
-    reviews.length > 0
-      ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
-      : 0;
-  return NextResponse.json({ reviews, average, count: reviews.length });
+  return NextResponse.json({ reviews });
 }
 
 export async function POST(
@@ -23,21 +19,28 @@ export async function POST(
   }
 
   const body = await req.json();
-  const { rating, comment, name } = body ?? {};
+  const { userId, userName, rating, comment } = body ?? {};
 
+  if (!userId || typeof userId !== "string") {
+    return NextResponse.json({ error: "تعذر التعرف على المستخدم" }, { status: 400 });
+  }
   const parsedRating = Number(rating);
   if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
-    return NextResponse.json({ error: "التقييم يجب أن يكون من 1 إلى 5 نجوم" }, { status: 400 });
+    return NextResponse.json({ error: "من فضلك اختر تقييمًا من 1 إلى 5 نجوم" }, { status: 400 });
   }
   if (!comment || typeof comment !== "string" || !comment.trim()) {
-    return NextResponse.json({ error: "من فضلك اكتب تعليقك" }, { status: 400 });
+    return NextResponse.json({ error: "من فضلك اكتب تعليقًا عن المنتج" }, { status: 400 });
+  }
+  if (comment.trim().length > 1000) {
+    return NextResponse.json({ error: "التعليق طويل جدًا" }, { status: 400 });
   }
 
   const review = await addReview({
     productId: params.id,
+    userId: userId.trim(),
+    userName: typeof userName === "string" && userName.trim() ? userName.trim() : "مستخدم",
     rating: parsedRating,
-    comment: comment.trim().slice(0, 600),
-    name: typeof name === "string" && name.trim() ? name.trim().slice(0, 60) : undefined,
+    comment: comment.trim(),
   });
 
   return NextResponse.json({ review }, { status: 201 });

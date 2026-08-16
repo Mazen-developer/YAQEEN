@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Product } from "@/lib/types";
+import type { ColorOption, Product } from "@/lib/types";
 import { SUGGESTED_CATEGORIES } from "@/lib/categories";
 
 function fileToCompressedDataURL(file: File, maxW = 700, quality = 0.82): Promise<string> {
@@ -33,6 +33,159 @@ function fileToCompressedDataURL(file: File, maxW = 700, quality = 0.82): Promis
   });
 }
 
+/** محرر عام لقوائم نصية (Sizes / Types) — إضافة وحذف بدون لمس الكود */
+function TagListEditor({
+  label,
+  placeholder,
+  values,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function add() {
+    const v = draft.trim();
+    if (!v || values.includes(v)) {
+      setDraft("");
+      return;
+    }
+    onChange([...values, v]);
+    setDraft("");
+  }
+
+  return (
+    <div className="mt-4">
+      <label className="mb-1.5 block text-sm font-bold">{label}</label>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder={placeholder}
+          className="flex-1 rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-lg border-[1.5px] border-brand-500 px-4 py-2.5 text-sm font-bold text-brand-600 transition hover:bg-brand-500 hover:text-white"
+        >
+          + إضافة
+        </button>
+      </div>
+      {values.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {values.map((v) => (
+            <span
+              key={v}
+              className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700"
+            >
+              {v}
+              <button
+                type="button"
+                onClick={() => onChange(values.filter((x) => x !== v))}
+                aria-label={`حذف ${v}`}
+                className="text-brand-500 hover:text-brand-700"
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ColorListEditor({
+  values,
+  onChange,
+}: {
+  values: ColorOption[];
+  onChange: (next: ColorOption[]) => void;
+}) {
+  const [name, setName] = useState("");
+  const [hex, setHex] = useState("#f0428d");
+
+  function add() {
+    const v = name.trim();
+    if (!v || values.some((c) => c.name === v)) {
+      setName("");
+      return;
+    }
+    onChange([...values, { name: v, hex }]);
+    setName("");
+  }
+
+  return (
+    <div className="mt-4">
+      <label className="mb-1.5 block text-sm font-bold">الألوان المتاحة</label>
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="color"
+          value={hex}
+          onChange={(e) => setHex(e.target.value)}
+          className="h-[42px] w-12 cursor-pointer rounded-lg border-[1.5px] border-line bg-white p-1"
+          aria-label="اختر كود اللون"
+        />
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder="اسم اللون، مثال: وردي"
+          className="min-w-[140px] flex-1 rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-lg border-[1.5px] border-brand-500 px-4 py-2.5 text-sm font-bold text-brand-600 transition hover:bg-brand-500 hover:text-white"
+        >
+          + إضافة
+        </button>
+      </div>
+      {values.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {values.map((c) => (
+            <span
+              key={c.name}
+              className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-3 pr-1.5 text-xs font-bold text-brand-700"
+            >
+              <span
+                className="h-3.5 w-3.5 rounded-full border border-black/10"
+                style={{ backgroundColor: c.hex || "#f0428d" }}
+              />
+              {c.name}
+              <button
+                type="button"
+                onClick={() => onChange(values.filter((x) => x.name !== c.name))}
+                aria-label={`حذف ${c.name}`}
+                className="text-brand-500 hover:text-brand-700"
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProductForm({
   password,
   mode,
@@ -48,12 +201,10 @@ export default function ProductForm({
   const [submitting, setSubmitting] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
 
-  function splitTags(value: FormDataEntryValue | null): string[] {
-    return String(value || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
+  const [colors, setColors] = useState<ColorOption[]>(product?.options?.colors ?? []);
+  const [sizes, setSizes] = useState<string[]>(product?.options?.sizes ?? []);
+  const [types, setTypes] = useState<string[]>(product?.options?.types ?? []);
+  const [minQuantity, setMinQuantity] = useState<number>(product?.options?.minQuantity ?? 1);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -74,6 +225,11 @@ export default function ProductForm({
       setError("من فضلك اختر صورة للمنتج");
       return;
     }
+    if (submitting) return;
+    if (!Number.isFinite(minQuantity) || minQuantity < 1) {
+      setError("الحد الأدنى للكمية يجب أن يكون 1 على الأقل");
+      return;
+    }
     setSubmitting(true);
     const form = new FormData(e.currentTarget);
     const payload = {
@@ -82,11 +238,12 @@ export default function ProductForm({
       category: String(form.get("category") || "").trim(),
       description: String(form.get("description") || "").trim(),
       image,
-      colors: splitTags(form.get("colors")),
-      sizes: splitTags(form.get("sizes")),
-      types: splitTags(form.get("types")),
-      stock: form.get("stock") ? Number(form.get("stock")) : undefined,
-      minOrderQty: form.get("minOrderQty") ? Number(form.get("minOrderQty")) : 1,
+      options: {
+        colors,
+        sizes,
+        types,
+        minQuantity: Math.floor(minQuantity),
+      },
     };
 
     const url = mode === "add" ? "/api/products" : `/api/products/${product?.id}`;
@@ -127,7 +284,7 @@ export default function ProductForm({
           required
           defaultValue={product?.name}
           placeholder="مثال: قميص قطن"
-          className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
         />
 
         <label className="mb-1.5 mt-4 text-sm font-bold">سعر المنتج (ج.م)</label>
@@ -139,7 +296,7 @@ export default function ProductForm({
           step="0.01"
           defaultValue={product?.price}
           placeholder="0.00"
-          className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
         />
 
         <label className="mb-1.5 mt-4 text-sm font-bold">تصنيف المنتج</label>
@@ -150,7 +307,7 @@ export default function ProductForm({
           list="category-suggestions"
           defaultValue={product?.category}
           placeholder="مثال: إلكترونيات"
-          className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
         />
         <datalist id="category-suggestions">
           {SUGGESTED_CATEGORIES.map((cat) => (
@@ -163,13 +320,13 @@ export default function ProductForm({
           name="description"
           defaultValue={product?.description}
           placeholder="اكتب تفاصيل عن المنتج، المقاس، الخامة، إلخ..."
-          className="min-h-[100px] resize-y rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          className="min-h-[100px] resize-y rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
         />
 
         <label className="mb-1.5 mt-4 text-sm font-bold">صورة المنتج</label>
         <label
           htmlFor="imgInput"
-          className="cursor-pointer rounded-xl border-2 border-dashed border-line p-4.5 text-center text-sm text-neutral-600 transition hover:border-black hover:text-black"
+          className="cursor-pointer rounded-xl border-2 border-dashed border-line p-4.5 text-center text-sm text-neutral-600 transition hover:border-brand-500 hover:text-brand-700"
         >
           {processingImage
             ? "جارٍ معالجة الصورة..."
@@ -189,76 +346,54 @@ export default function ProductForm({
           className="hidden"
         />
 
-        <div className="mt-5 rounded-xl border-[1.5px] border-dashed border-line p-4">
-          <h3 className="mb-3 text-sm font-black text-black">خيارات المنتج (اختياري)</h3>
+        <div className="mt-6 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50/50 p-4">
+          <h3 className="mb-1 font-display text-lg text-brand-700">خيارات المنتج (اختياري)</h3>
+          <p className="mb-1 text-xs text-neutral-600">
+            أضف ألوان، مقاسات، وأنواع مختلفة — المستخدم هيختار من بينها في صفحة المنتج.
+          </p>
 
-          <label className="mb-1.5 text-sm font-bold">الألوان</label>
-          <input
-            name="colors"
-            type="text"
-            defaultValue={product?.colors?.join(", ")}
-            placeholder="مثال: أحمر, وردي, أبيض (افصل بينهم بفاصلة)"
-            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          <ColorListEditor values={colors} onChange={setColors} />
+          <TagListEditor
+            label="المقاسات المتاحة (Size)"
+            placeholder="مثال: Medium"
+            values={sizes}
+            onChange={setSizes}
+          />
+          <TagListEditor
+            label="الأنواع المتاحة (Type)"
+            placeholder="مثال: Premium"
+            values={types}
+            onChange={setTypes}
           />
 
-          <label className="mb-1.5 mt-3 text-sm font-bold">الحجم</label>
+          <label className="mb-1.5 mt-4 block text-sm font-bold">أقل كمية للطلب (Minimum Quantity)</label>
           <input
-            name="sizes"
-            type="text"
-            defaultValue={product?.sizes?.join(", ")}
-            placeholder="مثال: صغير, وسط, كبير (افصل بينهم بفاصلة)"
-            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+            type="number"
+            min={1}
+            step={1}
+            value={minQuantity}
+            onChange={(e) => setMinQuantity(Math.max(1, Number(e.target.value) || 1))}
+            className="w-full rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
           />
-
-          <label className="mb-1.5 mt-3 text-sm font-bold">النوع</label>
-          <input
-            name="types"
-            type="text"
-            defaultValue={product?.types?.join(", ")}
-            placeholder="مثال: فانيليا, لافندر, ورد (افصل بينهم بفاصلة)"
-            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
-          />
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="flex flex-col">
-              <label className="mb-1.5 text-sm font-bold">العدد المتاح (المخزون)</label>
-              <input
-                name="stock"
-                type="number"
-                min={0}
-                defaultValue={product?.stock}
-                placeholder="مثال: 20"
-                className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
-              />
-            </div>
-            <div className="flex flex-col">
-              <label className="mb-1.5 text-sm font-bold">أقل عدد للطلب</label>
-              <input
-                name="minOrderQty"
-                type="number"
-                min={1}
-                defaultValue={product?.minOrderQty ?? 1}
-                placeholder="مثال: 1"
-                className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
-              />
-            </div>
-          </div>
+          <p className="mt-1 text-xs text-neutral-500">
+            المستخدم مش هيقدر يضيف كمية أقل من الرقم ده للسلة.
+          </p>
         </div>
 
-        {error && <div className="mt-3 text-sm font-bold text-black">{error}</div>}
+        {error && <div className="mt-3 text-sm font-bold text-brand-700">{error}</div>}
 
         <div className="mt-5 flex gap-2.5">
           <button
             type="submit"
             disabled={submitting || processingImage}
-            className="flex-1 rounded-lg bg-black px-4 py-3 text-sm font-bold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+            className="flex-1 rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
             {submitting ? "جارٍ الحفظ..." : mode === "add" ? "إضافة المنتج" : "حفظ التعديلات"}
           </button>
           <button
             type="button"
             onClick={() => router.push("/admin")}
-            className="rounded-lg border-[1.5px] border-line px-5 py-3 text-sm font-bold transition hover:border-black"
+            className="rounded-lg border-[1.5px] border-line px-5 py-3 text-sm font-bold transition hover:border-brand-500"
           >
             إلغاء
           </button>

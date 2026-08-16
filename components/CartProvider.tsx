@@ -8,25 +8,20 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { CartLine } from "@/lib/types";
-
-export type CartOptions = { color?: string; size?: string; type?: string };
+import type { CartLine, SelectedVariant } from "@/lib/types";
+import { buildLineId } from "@/lib/cart";
 
 type CartContextValue = {
   cart: CartLine[];
   count: number;
-  addToCart: (id: string, qty?: number, options?: CartOptions) => void;
-  changeQty: (lineKey: string, delta: number) => void;
-  removeFromCart: (lineKey: string) => void;
+  addToCart: (id: string, qty?: number, variant?: SelectedVariant) => void;
+  changeQty: (lineId: string, delta: number, minQty?: number) => void;
+  removeFromCart: (lineId: string) => void;
   clearCart: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "saffi-cart";
-
-function makeLineKey(id: string, options?: CartOptions): string {
-  return [id, options?.color || "", options?.size || "", options?.type || ""].join("::");
-}
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -37,14 +32,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // backward compatibility: old carts didn't have lineKey
-        const normalized: CartLine[] = Array.isArray(parsed)
-          ? parsed.map((line: CartLine) => ({
-              ...line,
-              lineKey: line.lineKey || makeLineKey(line.id, line),
+        // توافق مع نسخ سابقة كانت بتخزن { id, qty } بدون lineId
+        const migrated: CartLine[] = Array.isArray(parsed)
+          ? parsed.map((line: Partial<CartLine> & { id: string; qty: number }) => ({
+              lineId: line.lineId ?? buildLineId(line.id, line.variant),
+              id: line.id,
+              qty: line.qty,
+              variant: line.variant,
             }))
           : [];
-        setCart(normalized);
+        setCart(migrated);
       }
     } catch {
       // ignore corrupted cart
@@ -57,32 +54,40 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
   }, [cart, hydrated]);
 
-  const addToCart = useCallback((id: string, qty: number = 1, options?: CartOptions) => {
-    const lineKey = makeLineKey(id, options);
+  const addToCart = useCallback((id: string, qty: number = 1, variant?: SelectedVariant) => {
+    const lineId = buildLineId(id, variant);
     setCart((prev) => {
-      const existing = prev.find((line) => line.lineKey === lineKey);
+      const existing = prev.find((line) => line.lineId === lineId);
       if (existing) {
         return prev.map((line) =>
-          line.lineKey === lineKey ? { ...line, qty: line.qty + qty } : line
+          line.lineId === lineId ? { ...line, qty: line.qty + qty } : line
         );
       }
-      return [
-        ...prev,
-        { lineKey, id, qty, color: options?.color, size: options?.size, type: options?.type },
-      ];
+      return [...prev, { lineId, id, qty, variant }];
     });
   }, []);
 
-  const changeQty = useCallback((lineKey: string, delta: number) => {
+  const changeQty = useCallback((lineId: string, delta: number, minQty: number = 1) => {
     setCart((prev) =>
-      prev
-        .map((line) => (line.lineKey === lineKey ? { ...line, qty: line.qty + delta } : line))
-        .filter((line) => line.qty > 0)
+      prev.reduce<CartLine[]>((acc, line) => {
+        if (line.lineId !== lineId) {
+          acc.push(line);
+          return acc;
+        }
+        const nextQty = line.qty + delta;
+        if (nextQty <= 0) return acc; // إزالة السطر
+        if (delta < 0 && nextQty < minQty) {
+          acc.push(line); // امنع النزول تحت أقل كمية مسموحة
+          return acc;
+        }
+        acc.push({ ...line, qty: nextQty });
+        return acc;
+      }, [])
     );
   }, []);
 
-  const removeFromCart = useCallback((lineKey: string) => {
-    setCart((prev) => prev.filter((line) => line.lineKey !== lineKey));
+  const removeFromCart = useCallback((lineId: string) => {
+    setCart((prev) => prev.filter((line) => line.lineId !== lineId));
   }, []);
 
   const clearCart = useCallback(() => setCart([]), []);

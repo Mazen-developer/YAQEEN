@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import fs from "fs/promises";
 import path from "path";
-import type { Product, Order, Review } from "./types";
+import type { Order, Product, ProductOptions, Review } from "./types";
 
 /**
  * تخزين البيانات:
@@ -62,6 +62,31 @@ function cryptoRandomId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
+/* ---------- helpers ---------- */
+
+export const DEFAULT_PRODUCT_OPTIONS: ProductOptions = {
+  colors: [],
+  sizes: [],
+  types: [],
+  minQuantity: 1,
+};
+
+function normalizeProduct(product: Product): Product {
+  const options = product.options ?? DEFAULT_PRODUCT_OPTIONS;
+  return {
+    ...product,
+    options: {
+      colors: Array.isArray(options.colors) ? options.colors : [],
+      sizes: Array.isArray(options.sizes) ? options.sizes : [],
+      types: Array.isArray(options.types) ? options.types : [],
+      minQuantity:
+        Number.isFinite(options.minQuantity) && options.minQuantity > 0
+          ? Math.floor(options.minQuantity)
+          : 1,
+    },
+  };
+}
+
 /* ---------- products ---------- */
 
 export async function getProducts(): Promise<Product[]> {
@@ -73,28 +98,31 @@ export async function getProducts(): Promise<Product[]> {
     );
     return products
       .filter((p): p is Product => !!p)
+      .map(normalizeProduct)
       .sort((a, b) => b.createdAt - a.createdAt);
   }
   const db = await readLocalDb();
-  return db.products.sort((a, b) => b.createdAt - a.createdAt);
+  return db.products.map(normalizeProduct).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
   if (redis) {
-    return (await redis.get<Product>(`product:${id}`)) ?? null;
+    const product = (await redis.get<Product>(`product:${id}`)) ?? null;
+    return product ? normalizeProduct(product) : null;
   }
   const db = await readLocalDb();
-  return db.products.find((p) => p.id === id) ?? null;
+  const product = db.products.find((p) => p.id === id) ?? null;
+  return product ? normalizeProduct(product) : null;
 }
 
 export async function createProduct(
   input: Omit<Product, "id" | "createdAt">
 ): Promise<Product> {
-  const product: Product = {
+  const product: Product = normalizeProduct({
     id: cryptoRandomId(),
     createdAt: Date.now(),
     ...input,
-  };
+  });
 
   if (redis) {
     await redis.set(`product:${product.id}`, product);
@@ -115,7 +143,7 @@ export async function updateProduct(
   if (redis) {
     const existing = await redis.get<Product>(`product:${id}`);
     if (!existing) return null;
-    const updated: Product = { ...existing, ...input };
+    const updated = normalizeProduct({ ...existing, ...input });
     await redis.set(`product:${id}`, updated);
     return updated;
   }
@@ -123,7 +151,7 @@ export async function updateProduct(
   const db = await readLocalDb();
   const idx = db.products.findIndex((p) => p.id === id);
   if (idx === -1) return null;
-  db.products[idx] = { ...db.products[idx], ...input };
+  db.products[idx] = normalizeProduct({ ...db.products[idx], ...input });
   await writeLocalDb(db);
   return db.products[idx];
 }

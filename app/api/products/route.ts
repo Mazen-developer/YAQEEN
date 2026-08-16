@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createProduct, getProducts } from "@/lib/db";
 import { ADMIN_PASSWORD } from "@/lib/config";
+import { parseProductOptions } from "@/lib/productOptions";
 
 export async function GET() {
   const products = await getProducts();
@@ -14,8 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, price, image, category, description, colors, sizes, types, stock, minOrderQty } =
-    body ?? {};
+  const { name, price, image, category, description, options } = body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "اسم المنتج مطلوب" }, { status: 400 });
@@ -31,23 +31,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "صورة المنتج مطلوبة" }, { status: 400 });
   }
 
-  const parsedStock = stock === undefined || stock === null || stock === "" ? undefined : Number(stock);
-  const parsedMinQty =
-    minOrderQty === undefined || minOrderQty === null || minOrderQty === ""
-      ? undefined
-      : Number(minOrderQty);
-
   const product = await createProduct({
     name: name.trim(),
     price: parsedPrice,
     category: category.trim(),
     description: typeof description === "string" ? description.trim() : "",
     image,
-    colors: Array.isArray(colors) ? colors.filter(Boolean) : undefined,
-    sizes: Array.isArray(sizes) ? sizes.filter(Boolean) : undefined,
-    types: Array.isArray(types) ? types.filter(Boolean) : undefined,
-    stock: Number.isFinite(parsedStock) ? parsedStock : undefined,
-    minOrderQty: Number.isFinite(parsedMinQty) && parsedMinQty! > 0 ? parsedMinQty : 1,
+    options: parseProductOptions(options),
   });
   return NextResponse.json({ product }, { status: 201 });
 }

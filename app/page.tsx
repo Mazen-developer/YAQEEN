@@ -25,7 +25,7 @@ export default async function HomePage() {
           </p>
           <a
             href="#products"
-            className="mt-8 inline-block rounded-full bg-white px-8 py-3 text-sm font-black text-black transition hover:bg-neutral-200"
+            className="mt-8 inline-block rounded-full bg-white px-8 py-3 text-sm font-black text-brand-700 transition hover:bg-brand-50"
           >
             ابدأ التسوق 🛍️
           </a>

@@ -1,45 +1,48 @@
 "use client";
 
-import { useState } from "react";
-
-export function StarRatingDisplay({ rating, size = "text-base" }: { rating: number; size?: string }) {
-  return (
-    <span className={`inline-flex gap-0.5 ${size}`} aria-label={`${rating} من 5 نجوم`}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <span key={n} className={n <= Math.round(rating) ? "text-[#e8558a]" : "text-black/15"}>
-          ★
-        </span>
-      ))}
-    </span>
-  );
-}
-
-export function StarRatingInput({
+export default function StarRating({
   value,
   onChange,
+  size = 20,
+  readOnly = false,
 }: {
   value: number;
-  onChange: (n: number) => void;
+  onChange?: (v: number) => void;
+  size?: number;
+  readOnly?: boolean;
 }) {
-  const [hover, setHover] = useState(0);
+  const stars = [1, 2, 3, 4, 5];
 
   return (
-    <div className="flex gap-1 text-3xl">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          aria-label={`${n} نجوم`}
-          onMouseEnter={() => setHover(n)}
-          onMouseLeave={() => setHover(0)}
-          onClick={() => onChange(n)}
-          className={`transition ${
-            n <= (hover || value) ? "text-[#e8558a]" : "text-black/15"
-          } hover:scale-110`}
-        >
-          ★
-        </button>
-      ))}
+    <div className={`flex items-center gap-0.5 ${readOnly ? "" : "cursor-pointer"}`} role={readOnly ? undefined : "radiogroup"} aria-label="التقييم بالنجوم">
+      {stars.map((s) => {
+        const filled = s <= value;
+        if (readOnly) {
+          return (
+            <span
+              key={s}
+              aria-hidden="true"
+              style={{ fontSize: size, color: filled ? "#f0428d" : "#e5c9d6", lineHeight: 1 }}
+            >
+              ★
+            </span>
+          );
+        }
+        return (
+          <button
+            key={s}
+            type="button"
+            role="radio"
+            aria-checked={value === s}
+            aria-label={`${s} من 5 نجوم`}
+            onClick={() => onChange?.(s)}
+            className="transition hover:scale-110"
+            style={{ fontSize: size, color: filled ? "#f0428d" : "#e5c9d6", lineHeight: 1 }}
+          >
+            ★
+          </button>
+        );
+      })}
     </div>
   );
 }

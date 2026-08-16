@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/components/CartProvider";
 import { formatPrice } from "@/lib/format";
 import { GOVERNORATES } from "@/lib/governorates";
+import { variantLabel } from "@/lib/cart";
 import type { Product } from "@/lib/types";
 
 export default function CheckoutPage() {
@@ -46,7 +47,7 @@ export default function CheckoutPage() {
           phone: form.get("phone"),
           governorate: form.get("governorate"),
           address: form.get("address"),
-          cart,
+          cart: rows.map((r) => ({ id: r.id, qty: r.qty, variant: r.variant })),
         }),
       });
       const data = await res.json();
@@ -59,12 +60,7 @@ export default function CheckoutPage() {
       const customerName = String(form.get("name"));
       const governorate = String(form.get("governorate"));
       const address = String(form.get("address"));
-      const productLines = rows
-        .map((r) => {
-          const variantText = [r.color, r.size, r.type].filter(Boolean).join(" · ");
-          return `- ${r.product.name}${variantText ? ` (${variantText})` : ""} × ${r.qty}`;
-        })
-        .join("\n");
+      const productLines = rows.map((r) => `- ${r.product.name} × ${r.qty}`).join("\n");
       const message =
         `مرحبًا، أنا ${customerName} 👋\n` +
         `عايز أأكد طلبي من YAQEEN:\n\n` +
@@ -97,7 +93,7 @@ export default function CheckoutPage() {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-block rounded-lg bg-black px-6 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+            className="mt-4 inline-block rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-brand-700"
           >
             فتح واتساب لتأكيد الطلب
           </a>
@@ -105,7 +101,7 @@ export default function CheckoutPage() {
         <div>
           <Link
             href="/"
-            className="mt-3 inline-block text-sm font-bold text-neutral-600 underline underline-offset-2 hover:text-black"
+            className="mt-3 inline-block text-sm font-bold text-neutral-600 underline underline-offset-2 hover:text-brand-700"
           >
             العودة للرئيسية
           </Link>
@@ -125,7 +121,7 @@ export default function CheckoutPage() {
         <p>ارجع للرئيسية وضيف منتجات الأول</p>
         <Link
           href="/"
-          className="mt-4 inline-block rounded-lg bg-black px-6 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+          className="mt-4 inline-block rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-brand-700"
         >
           تصفح المنتجات
         </Link>
@@ -137,17 +133,18 @@ export default function CheckoutPage() {
     <div>
       <div className="mb-6 text-center">
         <h2 className="font-display text-4xl text-black">إتمام الشراء</h2>
-        <div className="mx-auto my-3.5 h-[3px] w-16 rounded bg-black" />
+        <div className="mx-auto my-3.5 h-[3px] w-16 rounded bg-brand-500" />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
           <div className="flex flex-col gap-2.5">
             {rows.map((r) => {
-              const variantText = [r.color, r.size, r.type].filter(Boolean).join(" · ");
+              const minQty = Math.max(1, r.product.options?.minQuantity ?? 1);
+              const label = variantLabel(r.variant);
               return (
                 <div
-                  key={r.lineKey}
+                  key={r.lineId}
                   className="flex items-center gap-3 rounded-xl border border-line bg-white p-2.5"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -158,31 +155,32 @@ export default function CheckoutPage() {
                   />
                   <div className="flex-1">
                     <div className="font-bold">{r.product.name}</div>
-                    {variantText && (
-                      <div className="text-xs text-neutral-500">{variantText}</div>
+                    {label && <div className="text-xs text-brand-600">{label}</div>}
+                    {minQty > 1 && (
+                      <div className="text-[11px] text-neutral-400">أقل كمية {minQty}</div>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => changeQty(r.lineKey, -1)}
-                      className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black"
+                      onClick={() => changeQty(r.lineId, -1, minQty)}
+                      className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black transition hover:border-brand-500"
                     >
                       −
                     </button>
                     <span className="w-5 text-center">{r.qty}</span>
                     <button
-                      onClick={() => changeQty(r.lineKey, 1)}
-                      className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black"
+                      onClick={() => changeQty(r.lineId, 1, minQty)}
+                      className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black transition hover:border-brand-500"
                     >
                       +
                     </button>
                   </div>
-                  <div className="min-w-[80px] text-left font-black">
+                  <div className="min-w-[80px] text-left font-black text-brand-700">
                     {formatPrice(r.product.price * r.qty)}
                   </div>
                   <button
-                    onClick={() => removeFromCart(r.lineKey)}
-                    className="px-1.5 font-black text-black/70 hover:text-black"
+                    onClick={() => removeFromCart(r.lineId)}
+                    className="px-1.5 font-black text-black/70 hover:text-brand-700"
                     aria-label="إزالة"
                   >
                     ✕
@@ -206,7 +204,7 @@ export default function CheckoutPage() {
               type="text"
               required
               placeholder="اكتب اسمك بالكامل"
-              className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+              className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
             />
 
             <label className="mb-1.5 mt-4 text-sm font-bold">رقم الهاتف</label>
@@ -216,7 +214,7 @@ export default function CheckoutPage() {
               required
               placeholder="01xxxxxxxxx"
               pattern="^01[0125][0-9]{8}$"
-              className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+              className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
             />
             <div className="mt-1 text-xs text-neutral-500">مثال: 01012345678</div>
 
@@ -225,7 +223,7 @@ export default function CheckoutPage() {
               name="governorate"
               required
               defaultValue=""
-              className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+              className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
             >
               <option value="" disabled>
                 اختر المحافظة
@@ -242,15 +240,15 @@ export default function CheckoutPage() {
               name="address"
               required
               placeholder="الشارع، رقم المبنى، علامة مميزة..."
-              className="min-h-[80px] resize-y rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+              className="min-h-[80px] resize-y rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
             />
 
-            {error && <div className="mt-3 text-sm font-bold text-black">{error}</div>}
+            {error && <div className="mt-3 text-sm font-bold text-brand-700">{error}</div>}
 
             <button
               type="submit"
               disabled={submitting}
-              className="mt-5 rounded-lg bg-black px-4 py-3 text-sm font-bold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+              className="mt-5 rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
               {submitting ? "جارٍ الحفظ..." : `تأكيد الطلب — ${formatPrice(total)}`}
             </button>

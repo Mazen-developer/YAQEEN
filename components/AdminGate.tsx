@@ -53,13 +53,13 @@ export default function AdminGate({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="••••••"
-            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
           />
           {error && <div className="mt-1.5 text-xs font-bold text-black">{error}</div>}
           <button
             type="submit"
             disabled={checking}
-            className="mt-5 rounded-lg bg-black px-4 py-3 text-sm font-bold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+            className="mt-5 rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
             {checking ? "جارٍ التحقق..." : "دخول"}
           </button>

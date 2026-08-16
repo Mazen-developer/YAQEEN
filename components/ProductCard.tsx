@@ -12,6 +12,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const router = useRouter();
+  const hasVariants = !!(product.colors?.length || product.sizes?.length || product.types?.length);
+  const outOfStock = typeof product.stock === "number" && product.stock <= 0;
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition hover:-translate-y-1">
@@ -38,20 +40,30 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div className="mt-auto flex gap-2">
           <button
+            disabled={outOfStock}
             onClick={() => {
-              addToCart(product.id);
+              if (hasVariants) {
+                router.push(`/product/${product.id}`);
+                return;
+              }
+              addToCart(product.id, product.minOrderQty && product.minOrderQty > 0 ? product.minOrderQty : 1);
               showToast("تمت الإضافة إلى السلة");
             }}
-            className="flex-1 rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm font-bold transition hover:border-black"
+            className="flex-1 rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm font-bold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-50"
           >
-            أضف للسلة
+            {outOfStock ? "نفدت الكمية" : hasVariants ? "اختر الخيارات" : "أضف للسلة"}
           </button>
           <button
+            disabled={outOfStock}
             onClick={() => {
-              addToCart(product.id);
+              if (hasVariants) {
+                router.push(`/product/${product.id}`);
+                return;
+              }
+              addToCart(product.id, product.minOrderQty && product.minOrderQty > 0 ? product.minOrderQty : 1);
               router.push("/checkout");
             }}
-            className="flex-1 rounded-lg border-[1.5px] border-black bg-black px-3 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+            className="flex-1 rounded-lg border-[1.5px] border-black bg-black px-3 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             اشترِ الآن
           </button>

@@ -59,7 +59,12 @@ export default function CheckoutPage() {
       const customerName = String(form.get("name"));
       const governorate = String(form.get("governorate"));
       const address = String(form.get("address"));
-      const productLines = rows.map((r) => `- ${r.product.name} × ${r.qty}`).join("\n");
+      const productLines = rows
+        .map((r) => {
+          const variantText = [r.color, r.size, r.type].filter(Boolean).join(" · ");
+          return `- ${r.product.name}${variantText ? ` (${variantText})` : ""} × ${r.qty}`;
+        })
+        .join("\n");
       const message =
         `مرحبًا، أنا ${customerName} 👋\n` +
         `عايز أأكد طلبي من YAQEEN:\n\n` +
@@ -138,45 +143,53 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
           <div className="flex flex-col gap-2.5">
-            {rows.map((r) => (
-              <div
-                key={r.id}
-                className="flex items-center gap-3 rounded-xl border border-line bg-white p-2.5"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={r.product.image}
-                  alt=""
-                  className="h-[52px] w-[52px] rounded-lg object-cover"
-                />
-                <div className="flex-1 font-bold">{r.product.name}</div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => changeQty(r.id, -1)}
-                    className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black"
-                  >
-                    −
-                  </button>
-                  <span className="w-5 text-center">{r.qty}</span>
-                  <button
-                    onClick={() => changeQty(r.id, 1)}
-                    className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black"
-                  >
-                    +
-                  </button>
-                </div>
-                <div className="min-w-[80px] text-left font-black">
-                  {formatPrice(r.product.price * r.qty)}
-                </div>
-                <button
-                  onClick={() => removeFromCart(r.id)}
-                  className="px-1.5 font-black text-black/70 hover:text-black"
-                  aria-label="إزالة"
+            {rows.map((r) => {
+              const variantText = [r.color, r.size, r.type].filter(Boolean).join(" · ");
+              return (
+                <div
+                  key={r.lineKey}
+                  className="flex items-center gap-3 rounded-xl border border-line bg-white p-2.5"
                 >
-                  ✕
-                </button>
-              </div>
-            ))}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={r.product.image}
+                    alt=""
+                    className="h-[52px] w-[52px] rounded-lg object-cover"
+                  />
+                  <div className="flex-1">
+                    <div className="font-bold">{r.product.name}</div>
+                    {variantText && (
+                      <div className="text-xs text-neutral-500">{variantText}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => changeQty(r.lineKey, -1)}
+                      className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black"
+                    >
+                      −
+                    </button>
+                    <span className="w-5 text-center">{r.qty}</span>
+                    <button
+                      onClick={() => changeQty(r.lineKey, 1)}
+                      className="h-6.5 w-6.5 rounded-full border border-line bg-white font-black"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="min-w-[80px] text-left font-black">
+                    {formatPrice(r.product.price * r.qty)}
+                  </div>
+                  <button
+                    onClick={() => removeFromCart(r.lineKey)}
+                    className="px-1.5 font-black text-black/70 hover:text-black"
+                    aria-label="إزالة"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <div className="mt-3.5 flex items-center justify-between border-t-2 border-dashed border-line pt-3.5 text-lg font-black">
             <span>الإجمالي</span>

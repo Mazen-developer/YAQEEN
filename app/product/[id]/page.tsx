@@ -3,6 +3,7 @@ import { getProduct } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
 import { categoryOf } from "@/lib/categories";
 import ProductActions from "@/components/ProductActions";
+import ReviewsSection from "@/components/ReviewsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -68,9 +69,11 @@ export default async function ProductPage({
             )}
           </div>
 
-          <ProductActions productId={product.id} />
+          <ProductActions product={product} />
         </div>
       </div>
+
+      <ReviewsSection productId={product.id} />
     </div>
   );
 }

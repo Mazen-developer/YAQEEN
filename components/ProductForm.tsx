@@ -48,6 +48,13 @@ export default function ProductForm({
   const [submitting, setSubmitting] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
 
+  function splitTags(value: FormDataEntryValue | null): string[] {
+    return String(value || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -75,6 +82,11 @@ export default function ProductForm({
       category: String(form.get("category") || "").trim(),
       description: String(form.get("description") || "").trim(),
       image,
+      colors: splitTags(form.get("colors")),
+      sizes: splitTags(form.get("sizes")),
+      types: splitTags(form.get("types")),
+      stock: form.get("stock") ? Number(form.get("stock")) : undefined,
+      minOrderQty: form.get("minOrderQty") ? Number(form.get("minOrderQty")) : 1,
     };
 
     const url = mode === "add" ? "/api/products" : `/api/products/${product?.id}`;
@@ -176,6 +188,62 @@ export default function ProductForm({
           onChange={handleFile}
           className="hidden"
         />
+
+        <div className="mt-5 rounded-xl border-[1.5px] border-dashed border-line p-4">
+          <h3 className="mb-3 text-sm font-black text-black">خيارات المنتج (اختياري)</h3>
+
+          <label className="mb-1.5 text-sm font-bold">الألوان</label>
+          <input
+            name="colors"
+            type="text"
+            defaultValue={product?.colors?.join(", ")}
+            placeholder="مثال: أحمر, وردي, أبيض (افصل بينهم بفاصلة)"
+            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          />
+
+          <label className="mb-1.5 mt-3 text-sm font-bold">الحجم</label>
+          <input
+            name="sizes"
+            type="text"
+            defaultValue={product?.sizes?.join(", ")}
+            placeholder="مثال: صغير, وسط, كبير (افصل بينهم بفاصلة)"
+            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          />
+
+          <label className="mb-1.5 mt-3 text-sm font-bold">النوع</label>
+          <input
+            name="types"
+            type="text"
+            defaultValue={product?.types?.join(", ")}
+            placeholder="مثال: فانيليا, لافندر, ورد (افصل بينهم بفاصلة)"
+            className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+          />
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="flex flex-col">
+              <label className="mb-1.5 text-sm font-bold">العدد المتاح (المخزون)</label>
+              <input
+                name="stock"
+                type="number"
+                min={0}
+                defaultValue={product?.stock}
+                placeholder="مثال: 20"
+                className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="mb-1.5 text-sm font-bold">أقل عدد للطلب</label>
+              <input
+                name="minOrderQty"
+                type="number"
+                min={1}
+                defaultValue={product?.minOrderQty ?? 1}
+                placeholder="مثال: 1"
+                className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
 
         {error && <div className="mt-3 text-sm font-bold text-black">{error}</div>}
 

@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, price, image, category, description } = body ?? {};
+  const { name, price, image, category, description, colors, sizes, types, stock, minOrderQty } =
+    body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "اسم المنتج مطلوب" }, { status: 400 });
@@ -30,12 +31,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "صورة المنتج مطلوبة" }, { status: 400 });
   }
 
+  const parsedStock = stock === undefined || stock === null || stock === "" ? undefined : Number(stock);
+  const parsedMinQty =
+    minOrderQty === undefined || minOrderQty === null || minOrderQty === ""
+      ? undefined
+      : Number(minOrderQty);
+
   const product = await createProduct({
     name: name.trim(),
     price: parsedPrice,
     category: category.trim(),
     description: typeof description === "string" ? description.trim() : "",
     image,
+    colors: Array.isArray(colors) ? colors.filter(Boolean) : undefined,
+    sizes: Array.isArray(sizes) ? sizes.filter(Boolean) : undefined,
+    types: Array.isArray(types) ? types.filter(Boolean) : undefined,
+    stock: Number.isFinite(parsedStock) ? parsedStock : undefined,
+    minOrderQty: Number.isFinite(parsedMinQty) && parsedMinQty! > 0 ? parsedMinQty : 1,
   });
   return NextResponse.json({ product }, { status: 201 });
 }

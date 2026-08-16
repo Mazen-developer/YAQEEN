@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import fs from "fs/promises";
 import path from "path";
-import type { Product, Order } from "./types";
+import type { Product, Order, Review } from "./types";
 
 /**
  * تخزين البيانات:
@@ -27,14 +27,14 @@ const redis = hasRedis
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
 
-type LocalDB = { products: Product[]; orders: Order[] };
+type LocalDB = { products: Product[]; orders: Order[]; reviews: Review[] };
 
 async function ensureLocalDb(): Promise<void> {
   try {
     await fs.access(DB_PATH);
   } catch {
     await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
-    const empty: LocalDB = { products: [], orders: [] };
+    const empty: LocalDB = { products: [], orders: [], reviews: [] };
     await fs.writeFile(DB_PATH, JSON.stringify(empty, null, 2), "utf-8");
   }
 }
@@ -47,9 +47,10 @@ async function readLocalDb(): Promise<LocalDB> {
     return {
       products: Array.isArray(parsed.products) ? parsed.products : [],
       orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+      reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [],
     };
   } catch {
-    return { products: [], orders: [] };
+    return { products: [], orders: [], reviews: [] };
   }
 }
 
@@ -179,4 +180,44 @@ export async function createOrder(
   db.orders.push(order);
   await writeLocalDb(db);
   return order;
+}
+
+/* ---------- reviews ---------- */
+
+export async function getReviews(productId: string): Promise<Review[]> {
+  if (redis) {
+    const ids = (await redis.smembers(`reviews:index:${productId}`)) as string[];
+    if (!ids.length) return [];
+    const reviews = await Promise.all(
+      ids.map((id) => redis.get<Review>(`review:${id}`))
+    );
+    return reviews
+      .filter((r): r is Review => !!r)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+  const db = await readLocalDb();
+  return db.reviews
+    .filter((r) => r.productId === productId)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function addReview(
+  input: Omit<Review, "id" | "createdAt">
+): Promise<Review> {
+  const review: Review = {
+    id: cryptoRandomId(),
+    createdAt: Date.now(),
+    ...input,
+  };
+
+  if (redis) {
+    await redis.set(`review:${review.id}`, review);
+    await redis.sadd(`reviews:index:${review.productId}`, review.id);
+    return review;
+  }
+
+  const db = await readLocalDb();
+  db.reviews.push(review);
+  await writeLocalDb(db);
+  return review;
 }

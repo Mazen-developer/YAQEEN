@@ -84,14 +84,18 @@ export default function AdminDashboard({ password }: { password: string }) {
                   <td className="px-3.5 py-3 align-top">{o.governorate}</td>
                   <td className="px-3.5 py-3 align-top">{o.address}</td>
                   <td className="px-3.5 py-3 align-top">
-                    {o.items.map((it) => (
-                      <span
-                        key={it.id}
-                        className="mb-1 ml-1 inline-block rounded-full bg-black/[0.06] px-2.5 py-0.5 text-xs"
-                      >
-                        {it.name} × {it.qty}
-                      </span>
-                    ))}
+                    {o.items.map((it, idx) => {
+                      const variantText = [it.color, it.size, it.type].filter(Boolean).join(" · ");
+                      return (
+                        <span
+                          key={`${it.id}-${idx}`}
+                          className="mb-1 ml-1 inline-block rounded-full bg-black/[0.06] px-2.5 py-0.5 text-xs"
+                        >
+                          {it.name}
+                          {variantText ? ` (${variantText})` : ""} × {it.qty}
+                        </span>
+                      );
+                    })}
                   </td>
                   <td className="px-3.5 py-3 align-top">
                     {new Date(o.createdAt).toLocaleString("ar-EG", {

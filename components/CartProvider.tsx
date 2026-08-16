@@ -10,17 +10,23 @@ import {
 } from "react";
 import type { CartLine } from "@/lib/types";
 
+export type CartOptions = { color?: string; size?: string; type?: string };
+
 type CartContextValue = {
   cart: CartLine[];
   count: number;
-  addToCart: (id: string, qty?: number) => void;
-  changeQty: (id: string, delta: number) => void;
-  removeFromCart: (id: string) => void;
+  addToCart: (id: string, qty?: number, options?: CartOptions) => void;
+  changeQty: (lineKey: string, delta: number) => void;
+  removeFromCart: (lineKey: string) => void;
   clearCart: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "saffi-cart";
+
+function makeLineKey(id: string, options?: CartOptions): string {
+  return [id, options?.color || "", options?.size || "", options?.type || ""].join("::");
+}
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -29,7 +35,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setCart(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // backward compatibility: old carts didn't have lineKey
+        const normalized: CartLine[] = Array.isArray(parsed)
+          ? parsed.map((line: CartLine) => ({
+              ...line,
+              lineKey: line.lineKey || makeLineKey(line.id, line),
+            }))
+          : [];
+        setCart(normalized);
+      }
     } catch {
       // ignore corrupted cart
     }
@@ -41,28 +57,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
   }, [cart, hydrated]);
 
-  const addToCart = useCallback((id: string, qty: number = 1) => {
+  const addToCart = useCallback((id: string, qty: number = 1, options?: CartOptions) => {
+    const lineKey = makeLineKey(id, options);
     setCart((prev) => {
-      const existing = prev.find((line) => line.id === id);
+      const existing = prev.find((line) => line.lineKey === lineKey);
       if (existing) {
         return prev.map((line) =>
-          line.id === id ? { ...line, qty: line.qty + qty } : line
+          line.lineKey === lineKey ? { ...line, qty: line.qty + qty } : line
         );
       }
-      return [...prev, { id, qty }];
+      return [
+        ...prev,
+        { lineKey, id, qty, color: options?.color, size: options?.size, type: options?.type },
+      ];
     });
   }, []);
 
-  const changeQty = useCallback((id: string, delta: number) => {
+  const changeQty = useCallback((lineKey: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((line) => (line.id === id ? { ...line, qty: line.qty + delta } : line))
+        .map((line) => (line.lineKey === lineKey ? { ...line, qty: line.qty + delta } : line))
         .filter((line) => line.qty > 0)
     );
   }, []);
 
-  const removeFromCart = useCallback((id: string) => {
-    setCart((prev) => prev.filter((line) => line.id !== id));
+  const removeFromCart = useCallback((lineKey: string) => {
+    setCart((prev) => prev.filter((line) => line.lineKey !== lineKey));
   }, []);
 
   const clearCart = useCallback(() => setCart([]), []);

@@ -6,6 +6,11 @@ export type Product = {
   category?: string;
   description?: string;
   createdAt: number;
+  colors?: string[];
+  sizes?: string[];
+  types?: string[];
+  stock?: number; // العدد المتاح
+  minOrderQty?: number; // أقل عدد يمكن طلبه
 };
 
 export type OrderItem = {
@@ -13,6 +18,9 @@ export type OrderItem = {
   name: string;
   price: number;
   qty: number;
+  color?: string;
+  size?: string;
+  type?: string;
 };
 
 export type Order = {
@@ -27,6 +35,19 @@ export type Order = {
 };
 
 export type CartLine = {
+  lineKey: string;
   id: string;
   qty: number;
+  color?: string;
+  size?: string;
+  type?: string;
+};
+
+export type Review = {
+  id: string;
+  productId: string;
+  rating: number; // 1 - 5
+  comment: string;
+  name?: string;
+  createdAt: number;
 };

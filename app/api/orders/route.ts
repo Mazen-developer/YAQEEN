@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   const products = await getProducts();
   const items = cart
-    .map((line: { id: string; qty: number }) => {
+    .map((line: { id: string; qty: number; color?: string; size?: string; type?: string }) => {
       const product = products.find((p) => p.id === line.id);
       if (!product || !line.qty || line.qty <= 0) return null;
       return {
@@ -41,9 +41,20 @@ export async function POST(req: NextRequest) {
         name: product.name,
         price: product.price,
         qty: line.qty,
+        color: line.color || undefined,
+        size: line.size || undefined,
+        type: line.type || undefined,
       };
     })
-    .filter(Boolean) as { id: string; name: string; price: number; qty: number }[];
+    .filter(Boolean) as {
+    id: string;
+    name: string;
+    price: number;
+    qty: number;
+    color?: string;
+    size?: string;
+    type?: string;
+  }[];
 
   if (items.length === 0) {
     return NextResponse.json({ error: "لا توجد منتجات صالحة في السلة" }, { status: 400 });

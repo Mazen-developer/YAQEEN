@@ -32,7 +32,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ar" dir="rtl" className={`${tajawal.variable} ${arefRuqaa.variable}`}>
-<body className="flex min-h-screen flex-col font-body text-black bg-[#8FA28A] bg-cover bg-center bg-no-repeat">        <ToastProvider>
+      <body className="animated-bg flex min-h-screen flex-col font-body text-black">
+        <ToastProvider>
           <CartProvider>
             <Header />
             <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">{children}</main>

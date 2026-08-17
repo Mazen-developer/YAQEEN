@@ -4,6 +4,7 @@ import { categoryOf } from "@/lib/categories";
 import ProductActions from "@/components/ProductActions";
 import ReviewSection from "@/components/ReviewSection";
 import RatingSummary from "@/components/RatingSummary";
+import ProductImageSlider from "@/components/ProductImageSlider";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +41,11 @@ export default async function ProductPage({
 
       <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2">
         <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.image}
+          <ProductImageSlider
+            images={product.images?.length ? product.images : [product.image]}
             alt={product.name}
-            className="aspect-square w-full object-cover"
+            className="aspect-square w-full"
+            showDots
           />
         </div>
 

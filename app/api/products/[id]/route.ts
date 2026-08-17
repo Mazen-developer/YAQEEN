@@ -24,7 +24,7 @@ export async function PUT(
   }
 
   const body = await req.json();
-  const { name, price, image, category, description, options } = body ?? {};
+  const { name, price, image, images, category, description, options } = body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "اسم المنتج مطلوب" }, { status: 400 });
@@ -36,7 +36,14 @@ export async function PUT(
   if (!category || typeof category !== "string" || !category.trim()) {
     return NextResponse.json({ error: "تصنيف المنتج مطلوب" }, { status: 400 });
   }
-  if (!image || typeof image !== "string") {
+
+  const cleanImages: string[] = Array.isArray(images)
+    ? images.filter((i): i is string => typeof i === "string" && i.length > 0)
+    : [];
+  if (cleanImages.length === 0 && typeof image === "string" && image.length > 0) {
+    cleanImages.push(image);
+  }
+  if (cleanImages.length === 0) {
     return NextResponse.json({ error: "صورة المنتج مطلوبة" }, { status: 400 });
   }
 
@@ -45,7 +52,8 @@ export async function PUT(
     price: parsedPrice,
     category: category.trim(),
     description: typeof description === "string" ? description.trim() : "",
-    image,
+    image: cleanImages[0],
+    images: cleanImages,
     options: parseProductOptions(options),
   });
   if (!product) {

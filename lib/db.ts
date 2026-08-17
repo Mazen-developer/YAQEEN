@@ -71,10 +71,19 @@ export const DEFAULT_PRODUCT_OPTIONS: ProductOptions = {
   minQuantity: 1,
 };
 
-/** بيتحقق من شكل الـ options ويهاجر أي شكل قديم (colors/sizes/types) تلقائيًا */
+/** بيتحقق من شكل الـ options ويهاجر أي شكل قديم (colors/sizes/types) تلقائيًا،
+ *  وكمان بيضمن وجود مصفوفة images (بيهاجر المنتجات القديمة اللي كانت بصورة واحدة بس) */
 function normalizeProduct(product: Product): Product {
+  const images =
+    Array.isArray(product.images) && product.images.length > 0
+      ? product.images
+      : product.image
+      ? [product.image]
+      : [];
   return {
     ...product,
+    image: images[0] ?? product.image,
+    images,
     options: parseProductOptions(product.options),
   };
 }

@@ -1,5 +1,6 @@
 import { getProducts } from "@/lib/db";
 import ProductsSection from "@/components/ProductsSection";
+import TestimonialsSwiper from "@/components/TestimonialsSwiper";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ export default async function HomePage() {
       <div id="products" className="scroll-mt-24 pt-10">
         <ProductsSection products={products} />
       </div>
+
+      <TestimonialsSwiper />
     </div>
   );
 }

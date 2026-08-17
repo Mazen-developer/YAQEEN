@@ -33,7 +33,8 @@ export type Product = {
   id: string;
   name: string;
   price: number;
-  image: string; // data URL (base64)
+  image: string; // data URL (base64) — الصورة الأساسية (أول صورة في images)
+  images?: string[]; // كل صور المنتج (data URLs) — لو أكتر من صورة بتتبدل تلقائيًا في العرض
   category?: string;
   description?: string;
   createdAt: number;

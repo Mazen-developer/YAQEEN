@@ -8,6 +8,7 @@ import { useToast } from "./ToastProvider";
 import { formatPrice } from "@/lib/format";
 import { categoryOf } from "@/lib/categories";
 import { getPriceRange } from "@/lib/productOptions";
+import ProductImageSlider from "./ProductImageSlider";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
@@ -35,11 +36,11 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-brand-200/50 animate-pop-in">
       <Link href={`/product/${product.id}`} className="block aspect-square overflow-hidden bg-neutral-100">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={product.image}
+        <ProductImageSlider
+          images={product.images?.length ? product.images : [product.image]}
           alt={product.name}
-          className="h-full w-full object-cover transition duration-500 hover:scale-105"
+          className="h-full w-full"
+          imgClassName="transition-transform duration-500 hover:scale-105"
         />
       </Link>
       <div className="flex flex-1 flex-col gap-3 p-4">

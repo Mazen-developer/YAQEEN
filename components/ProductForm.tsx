@@ -305,7 +305,11 @@ export default function ProductForm({
   product?: Product;
 }) {
   const router = useRouter();
-  const [image, setImage] = useState<string | null>(product?.image ?? null);
+  const [images, setImages] = useState<string[]>(() => {
+    if (product?.images?.length) return product.images;
+    if (product?.image) return [product.image];
+    return [];
+  });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
@@ -324,23 +328,38 @@ export default function ProductForm({
     return map;
   });
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
     setProcessingImage(true);
     try {
-      const dataUrl = await fileToCompressedDataURL(file);
-      setImage(dataUrl);
+      const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataURL(f)));
+      setImages((prev) => [...prev, ...dataUrls]);
     } finally {
       setProcessingImage(false);
+      e.target.value = "";
     }
+  }
+
+  function removeImage(index: number) {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function moveImage(index: number, dir: -1 | 1) {
+    setImages((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    if (!image) {
-      setError("من فضلك اختر صورة للمنتج");
+    if (images.length === 0) {
+      setError("من فضلك اختر صورة واحدة على الأقل للمنتج");
       return;
     }
     if (submitting) return;
@@ -379,7 +398,8 @@ export default function ProductForm({
       price: Number(form.get("price")),
       category: String(form.get("category") || "").trim(),
       description: String(form.get("description") || "").trim(),
-      image,
+      image: images[0],
+      images,
       options: {
         list: cleanOptions,
         variants,
@@ -468,28 +488,76 @@ export default function ProductForm({
           className="min-h-[100px] resize-y rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
         />
 
-        <label className="mb-1.5 mt-4 text-sm font-bold">صورة المنتج</label>
+        <label className="mb-1.5 mt-4 text-sm font-bold">صور المنتج</label>
+        <p className="mb-1.5 text-xs text-neutral-500">
+          تقدر تضيف أكتر من صورة — لو أضفت أكتر من واحدة، الصور هتتبدل تلقائيًا كل ٢ ثانية في
+          عرض المنتج. أول صورة في الترتيب هي الصورة الأساسية.
+        </p>
         <label
           htmlFor="imgInput"
           className="cursor-pointer rounded-xl border-2 border-dashed border-line p-4.5 text-center text-sm text-neutral-600 transition hover:border-brand-500 hover:text-brand-700"
         >
           {processingImage
-            ? "جارٍ معالجة الصورة..."
-            : image
-            ? "اضغط لتغيير الصورة"
-            : "اضغط لاختيار صورة المنتج"}
-          {image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" className="mx-auto mt-2.5 max-h-40 rounded-lg" />
-          )}
+            ? "جارٍ معالجة الصور..."
+            : images.length
+            ? "اضغط لإضافة صور تانية"
+            : "اضغط لاختيار صور المنتج"}
         </label>
         <input
           id="imgInput"
           type="file"
           accept="image/*"
-          onChange={handleFile}
+          multiple
+          onChange={handleFiles}
           className="hidden"
         />
+
+        {images.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            {images.map((src, i) => (
+              <div
+                key={i}
+                className="group relative overflow-hidden rounded-lg border-[1.5px] border-line"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="h-24 w-24 object-cover" />
+                {i === 0 && (
+                  <span className="absolute right-1 top-1 rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    أساسية
+                  </span>
+                )}
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-1 py-1 opacity-0 transition group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => moveImage(i, -1)}
+                    disabled={i === 0}
+                    aria-label="تحريك لليسار"
+                    className="rounded px-1 text-xs font-bold text-white disabled:opacity-30"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    aria-label="حذف الصورة"
+                    className="rounded px-1 text-xs font-bold text-white hover:text-brand-200"
+                  >
+                    🗑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveImage(i, 1)}
+                    disabled={i === images.length - 1}
+                    aria-label="تحريك لليمين"
+                    className="rounded px-1 text-xs font-bold text-white disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="mt-6 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50/50 p-4">
           <h3 className="mb-1 font-display text-lg text-brand-700">خيارات المنتج والأسعار (اختياري)</h3>

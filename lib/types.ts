@@ -1,12 +1,31 @@
-export type ColorOption = {
-  name: string;
+/** قيمة واحدة داخل Option (مثال: "أحمر" داخل Option "اللون") */
+export type ProductOptionValue = {
+  /** نص القيمة، لازم يكون فريد داخل نفس الـ Option */
+  value: string;
+  /** كود لون اختياري (لعرض دائرة اللون) — مفيد لأي Option، مش بس الألوان */
   hex?: string;
 };
 
+/** Option واحد قابل للتعريف من الأدمن (اللون، الحجم، النوع، أو أي اسم آخر) */
+export type ProductOption = {
+  /** اسم الـ Option، لازم يكون فريد داخل نفس المنتج */
+  name: string;
+  values: ProductOptionValue[];
+};
+
+/** تركيبة مختارة: اسم كل Option -> القيمة المختارة منه */
+export type VariantCombination = Record<string, string>;
+
+/** سعر خاص بتركيبة معينة من الـ Options (Variant) */
+export type ProductVariant = {
+  combination: VariantCombination;
+  /** لو undefined أو null، السعر بيرجع لسعر المنتج الأساسي */
+  price?: number;
+};
+
 export type ProductOptions = {
-  colors: ColorOption[];
-  sizes: string[];
-  types: string[];
+  list: ProductOption[];
+  variants: ProductVariant[];
   minQuantity: number;
 };
 
@@ -21,11 +40,8 @@ export type Product = {
   options?: ProductOptions;
 };
 
-export type SelectedVariant = {
-  color?: string;
-  size?: string;
-  type?: string;
-};
+/** التركيبة اللي بيختارها العميل في صفحة المنتج */
+export type SelectedVariant = VariantCombination;
 
 export type OrderItem = {
   id: string;

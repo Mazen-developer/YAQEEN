@@ -1,9 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { ColorOption, Product } from "@/lib/types";
+import { useMemo, useState } from "react";
+import type { Product, ProductOption, ProductOptionValue, VariantCombination } from "@/lib/types";
 import { SUGGESTED_CATEGORIES } from "@/lib/categories";
+import { combinationKey, generateCombinations } from "@/lib/productOptions";
+import { formatPrice } from "@/lib/format";
+
+const MAX_COMBINATIONS_SHOWN = 300;
 
 function fileToCompressedDataURL(file: File, maxW = 700, quality = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -33,34 +37,54 @@ function fileToCompressedDataURL(file: File, maxW = 700, quality = 0.82): Promis
   });
 }
 
-/** محرر عام لقوائم نصية (Sizes / Types) — إضافة وحذف بدون لمس الكود */
-function TagListEditor({
-  label,
-  placeholder,
+/* ------------------------------------------------------------------ */
+/* محرر قيم Option واحد (مثال: قيم "اللون" -> أحمر، أزرق...)            */
+/* ------------------------------------------------------------------ */
+
+function OptionValuesEditor({
   values,
   onChange,
 }: {
-  label: string;
-  placeholder: string;
-  values: string[];
-  onChange: (next: string[]) => void;
+  values: ProductOptionValue[];
+  onChange: (next: ProductOptionValue[]) => void;
 }) {
   const [draft, setDraft] = useState("");
+  const [hex, setHex] = useState("#f0428d");
+  const [useColor, setUseColor] = useState(false);
 
   function add() {
     const v = draft.trim();
-    if (!v || values.includes(v)) {
+    if (!v || values.some((x) => x.value.toLowerCase() === v.toLowerCase())) {
       setDraft("");
       return;
     }
-    onChange([...values, v]);
+    onChange([...values, { value: v, hex: useColor ? hex : undefined }]);
     setDraft("");
   }
 
   return (
-    <div className="mt-4">
-      <label className="mb-1.5 block text-sm font-bold">{label}</label>
-      <div className="flex gap-2">
+    <div className="mt-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-xs font-bold text-neutral-500">
+          <input
+            type="checkbox"
+            checked={useColor}
+            onChange={(e) => setUseColor(e.target.checked)}
+            className="h-3.5 w-3.5"
+          />
+          إظهار لون مميز لكل قيمة
+        </label>
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {useColor && (
+          <input
+            type="color"
+            value={hex}
+            onChange={(e) => setHex(e.target.value)}
+            className="h-[38px] w-11 cursor-pointer rounded-lg border-[1.5px] border-line bg-white p-1"
+            aria-label="اختر كود اللون"
+          />
+        )}
         <input
           type="text"
           value={draft}
@@ -71,29 +95,35 @@ function TagListEditor({
               add();
             }
           }}
-          placeholder={placeholder}
-          className="flex-1 rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
+          placeholder="اكتب قيمة، مثال: أحمر أو Small"
+          className="min-w-[120px] flex-1 rounded-lg border-[1.5px] border-line px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
         />
         <button
           type="button"
           onClick={add}
-          className="rounded-lg border-[1.5px] border-brand-500 px-4 py-2.5 text-sm font-bold text-brand-600 transition hover:bg-brand-500 hover:text-white"
+          className="rounded-lg border-[1.5px] border-brand-500 px-3.5 py-2 text-xs font-bold text-brand-600 transition hover:bg-brand-500 hover:text-white"
         >
-          + إضافة
+          + إضافة قيمة
         </button>
       </div>
       {values.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {values.map((v) => (
             <span
-              key={v}
-              className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700"
+              key={v.value}
+              className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-2.5 pr-1.5 text-xs font-bold text-brand-700"
             >
-              {v}
+              {v.hex && (
+                <span
+                  className="h-3.5 w-3.5 rounded-full border border-black/10"
+                  style={{ backgroundColor: v.hex }}
+                />
+              )}
+              {v.value}
               <button
                 type="button"
-                onClick={() => onChange(values.filter((x) => x !== v))}
-                aria-label={`حذف ${v}`}
+                onClick={() => onChange(values.filter((x) => x.value !== v.value))}
+                aria-label={`حذف ${v.value}`}
                 className="text-brand-500 hover:text-brand-700"
               >
                 ✕
@@ -106,85 +136,164 @@ function TagListEditor({
   );
 }
 
-function ColorListEditor({
-  values,
+/* ------------------------------------------------------------------ */
+/* محرر كل الـ Options (اللون، الحجم، النوع، أو أي اسم يضيفه الأدمن)     */
+/* ------------------------------------------------------------------ */
+
+function OptionsEditor({
+  options,
   onChange,
 }: {
-  values: ColorOption[];
-  onChange: (next: ColorOption[]) => void;
+  options: ProductOption[];
+  onChange: (next: ProductOption[]) => void;
 }) {
-  const [name, setName] = useState("");
-  const [hex, setHex] = useState("#f0428d");
+  function addOption() {
+    onChange([...options, { name: "", values: [] }]);
+  }
 
-  function add() {
-    const v = name.trim();
-    if (!v || values.some((c) => c.name === v)) {
-      setName("");
-      return;
-    }
-    onChange([...values, { name: v, hex }]);
-    setName("");
+  function updateOption(index: number, patch: Partial<ProductOption>) {
+    onChange(options.map((o, i) => (i === index ? { ...o, ...patch } : o)));
+  }
+
+  function removeOption(index: number) {
+    onChange(options.filter((_, i) => i !== index));
   }
 
   return (
     <div className="mt-4">
-      <label className="mb-1.5 block text-sm font-bold">الألوان المتاحة</label>
-      <div className="flex flex-wrap gap-2">
-        <input
-          type="color"
-          value={hex}
-          onChange={(e) => setHex(e.target.value)}
-          className="h-[42px] w-12 cursor-pointer rounded-lg border-[1.5px] border-line bg-white p-1"
-          aria-label="اختر كود اللون"
-        />
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add();
-            }
-          }}
-          placeholder="اسم اللون، مثال: وردي"
-          className="min-w-[140px] flex-1 rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
-        />
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="text-sm font-bold">Options المنتج (اللون، الحجم، النوع...)</label>
         <button
           type="button"
-          onClick={add}
-          className="rounded-lg border-[1.5px] border-brand-500 px-4 py-2.5 text-sm font-bold text-brand-600 transition hover:bg-brand-500 hover:text-white"
+          onClick={addOption}
+          className="rounded-lg border-[1.5px] border-brand-500 px-3.5 py-1.5 text-xs font-bold text-brand-600 transition hover:bg-brand-500 hover:text-white"
         >
-          + إضافة
+          + إضافة Option جديد
         </button>
       </div>
-      {values.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {values.map((c) => (
-            <span
-              key={c.name}
-              className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-3 pr-1.5 text-xs font-bold text-brand-700"
-            >
-              <span
-                className="h-3.5 w-3.5 rounded-full border border-black/10"
-                style={{ backgroundColor: c.hex || "#f0428d" }}
+
+      {options.length === 0 && (
+        <p className="text-xs text-neutral-500">
+          لسه معملتش أي Option. لو المنتج بسيط من غير اختيارات، سيبها فاضية.
+        </p>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {options.map((option, i) => (
+          <div key={i} className="rounded-xl border-[1.5px] border-line bg-white p-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={option.name}
+                onChange={(e) => updateOption(i, { name: e.target.value })}
+                placeholder="اسم الـ Option، مثال: اللون"
+                className="flex-1 rounded-lg border-[1.5px] border-line px-3 py-2 text-sm font-bold focus:border-brand-500 focus:outline-none"
               />
-              {c.name}
               <button
                 type="button"
-                onClick={() => onChange(values.filter((x) => x.name !== c.name))}
-                aria-label={`حذف ${c.name}`}
-                className="text-brand-500 hover:text-brand-700"
+                onClick={() => removeOption(i)}
+                aria-label="حذف Option"
+                className="rounded-lg border-[1.5px] border-line px-2.5 py-2 text-sm text-neutral-500 transition hover:border-brand-500 hover:text-brand-700"
               >
-                ✕
+                🗑
               </button>
-            </span>
-          ))}
-        </div>
-      )}
+            </div>
+            <OptionValuesEditor
+              values={option.values}
+              onChange={(values) => updateOption(i, { values })}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* جدول أسعار كل التركيبات (Combinations)                              */
+/* ------------------------------------------------------------------ */
+
+function CombinationsPriceTable({
+  options,
+  basePrice,
+  priceMap,
+  onChange,
+}: {
+  options: ProductOption[];
+  basePrice: number;
+  priceMap: Record<string, string>;
+  onChange: (next: Record<string, string>) => void;
+}) {
+  const combinations = useMemo(() => generateCombinations(options), [options]);
+  const optionNames = options.map((o) => o.name).filter(Boolean);
+
+  if (!optionNames.length || combinations.length === 0) return null;
+
+  if (combinations.length > MAX_COMBINATIONS_SHOWN) {
+    return (
+      <div className="mt-4 rounded-lg border border-dashed border-brand-300 bg-white p-3 text-xs text-neutral-600">
+        عدد التركيبات ({combinations.length}) كبير جدًا لعرضه كجدول. قلّل عدد القيم في كل Option
+        لو عايز تحدد سعر مختلف لكل تركيبة، وإلا هيتم استخدام السعر الأساسي للمنتج للكل.
+      </div>
+    );
+  }
+
+  function setPrice(key: string, value: string) {
+    onChange({ ...priceMap, [key]: value });
+  }
+
+  return (
+    <div className="mt-4">
+      <label className="mb-1.5 block text-sm font-bold">أسعار التركيبات (Combinations)</label>
+      <p className="mb-2 text-xs text-neutral-500">
+        سيب الخانة فاضية لو عايز تستخدم السعر الأساسي للمنتج ({formatPrice(basePrice)}) لهذه التركيبة.
+      </p>
+      <div className="overflow-x-auto rounded-lg border border-line">
+        <table className="w-full min-w-[360px] border-collapse bg-white text-sm">
+          <thead>
+            <tr className="bg-brand-50 text-brand-700">
+              {optionNames.map((name) => (
+                <th key={name} className="px-3 py-2 text-right font-bold">
+                  {name}
+                </th>
+              ))}
+              <th className="px-3 py-2 text-right font-bold">السعر (ج.م)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {combinations.map((combo: VariantCombination) => {
+              const key = combinationKey(combo);
+              return (
+                <tr key={key} className="border-t border-line">
+                  {optionNames.map((name) => (
+                    <td key={name} className="px-3 py-2">
+                      {combo[name]}
+                    </td>
+                  ))}
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={priceMap[key] ?? ""}
+                      onChange={(e) => setPrice(key, e.target.value)}
+                      placeholder={String(basePrice)}
+                      className="w-28 rounded-lg border-[1.5px] border-line px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* الفورم الرئيسي                                                      */
+/* ------------------------------------------------------------------ */
 
 export default function ProductForm({
   password,
@@ -201,10 +310,19 @@ export default function ProductForm({
   const [submitting, setSubmitting] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
 
-  const [colors, setColors] = useState<ColorOption[]>(product?.options?.colors ?? []);
-  const [sizes, setSizes] = useState<string[]>(product?.options?.sizes ?? []);
-  const [types, setTypes] = useState<string[]>(product?.options?.types ?? []);
+  const [price, setPrice] = useState<number>(product?.price ?? 0);
+  const [options, setOptions] = useState<ProductOption[]>(product?.options?.list ?? []);
   const [minQuantity, setMinQuantity] = useState<number>(product?.options?.minQuantity ?? 1);
+
+  const [priceMap, setPriceMap] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const v of product?.options?.variants ?? []) {
+      if (typeof v.price === "number") {
+        map[combinationKey(v.combination)] = String(v.price);
+      }
+    }
+    return map;
+  });
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -230,8 +348,32 @@ export default function ProductForm({
       setError("الحد الأدنى للكمية يجب أن يكون 1 على الأقل");
       return;
     }
+    const cleanOptions = options
+      .map((o) => ({ ...o, name: o.name.trim() }))
+      .filter((o) => o.name && o.values.length > 0);
+
+    for (const o of cleanOptions) {
+      if (!o.values.length) {
+        setError(`الـ Option "${o.name}" لازم يحتوي على قيمة واحدة على الأقل`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     const form = new FormData(e.currentTarget);
+
+    const combinations = generateCombinations(cleanOptions);
+    const variants = combinations
+      .map((combination) => {
+        const key = combinationKey(combination);
+        const raw = priceMap[key];
+        if (raw === undefined || raw === "") return null;
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed < 0) return null;
+        return { combination, price: parsed };
+      })
+      .filter(Boolean);
+
     const payload = {
       name: String(form.get("name") || "").trim(),
       price: Number(form.get("price")),
@@ -239,9 +381,8 @@ export default function ProductForm({
       description: String(form.get("description") || "").trim(),
       image,
       options: {
-        colors,
-        sizes,
-        types,
+        list: cleanOptions,
+        variants,
         minQuantity: Math.floor(minQuantity),
       },
     };
@@ -272,7 +413,7 @@ export default function ProductForm({
   }
 
   return (
-    <div className="mx-auto max-w-xl rounded-2xl border border-line bg-white p-6 shadow-sm">
+    <div className="mx-auto max-w-2xl rounded-2xl border border-line bg-white p-6 shadow-sm">
       <h2 className="mb-4 font-display text-2xl text-black">
         {mode === "add" ? "إضافة منتج جديد" : "تعديل المنتج"}
       </h2>
@@ -287,17 +428,21 @@ export default function ProductForm({
           className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
         />
 
-        <label className="mb-1.5 mt-4 text-sm font-bold">سعر المنتج (ج.م)</label>
+        <label className="mb-1.5 mt-4 text-sm font-bold">السعر الأساسي للمنتج (ج.م)</label>
         <input
           name="price"
           type="number"
           required
           min={0}
           step="0.01"
-          defaultValue={product?.price}
+          value={price}
+          onChange={(e) => setPrice(Math.max(0, Number(e.target.value) || 0))}
           placeholder="0.00"
           className="rounded-lg border-[1.5px] border-line px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
         />
+        <p className="mt-1 text-xs text-neutral-500">
+          هذا السعر بيتستخدم لو المنتج من غير Options، أو لأي تركيبة ملهاش سعر خاص في الجدول تحت.
+        </p>
 
         <label className="mb-1.5 mt-4 text-sm font-bold">تصنيف المنتج</label>
         <input
@@ -347,23 +492,18 @@ export default function ProductForm({
         />
 
         <div className="mt-6 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50/50 p-4">
-          <h3 className="mb-1 font-display text-lg text-brand-700">خيارات المنتج (اختياري)</h3>
+          <h3 className="mb-1 font-display text-lg text-brand-700">خيارات المنتج والأسعار (اختياري)</h3>
           <p className="mb-1 text-xs text-neutral-600">
-            أضف ألوان، مقاسات، وأنواع مختلفة — المستخدم هيختار من بينها في صفحة المنتج.
+            أضف أي Options زي اللون أو الحجم أو النوع، وحدد سعر مختلف لكل تركيبة لو احتجت.
           </p>
 
-          <ColorListEditor values={colors} onChange={setColors} />
-          <TagListEditor
-            label="المقاسات المتاحة (Size)"
-            placeholder="مثال: Medium"
-            values={sizes}
-            onChange={setSizes}
-          />
-          <TagListEditor
-            label="الأنواع المتاحة (Type)"
-            placeholder="مثال: Premium"
-            values={types}
-            onChange={setTypes}
+          <OptionsEditor options={options} onChange={setOptions} />
+
+          <CombinationsPriceTable
+            options={options}
+            basePrice={price}
+            priceMap={priceMap}
+            onChange={setPriceMap}
           />
 
           <label className="mb-1.5 mt-4 block text-sm font-bold">أقل كمية للطلب (Minimum Quantity)</label>

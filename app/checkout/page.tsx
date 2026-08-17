@@ -6,6 +6,7 @@ import { useCart } from "@/components/CartProvider";
 import { formatPrice } from "@/lib/format";
 import { GOVERNORATES } from "@/lib/governorates";
 import { variantLabel } from "@/lib/cart";
+import { getVariantPrice } from "@/lib/productOptions";
 import type { Product } from "@/lib/types";
 
 export default function CheckoutPage() {
@@ -30,7 +31,10 @@ export default function CheckoutPage() {
       .filter((r): r is typeof r & { product: Product } => Boolean(r.product));
   }, [cart, products]);
 
-  const total = rows.reduce((s, r) => s + r.product.price * r.qty, 0);
+  const total = rows.reduce(
+    (s, r) => s + getVariantPrice(r.product, r.variant) * r.qty,
+    0
+  );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -142,6 +146,7 @@ export default function CheckoutPage() {
             {rows.map((r) => {
               const minQty = Math.max(1, r.product.options?.minQuantity ?? 1);
               const label = variantLabel(r.variant);
+              const linePrice = getVariantPrice(r.product, r.variant);
               return (
                 <div
                   key={r.lineId}
@@ -176,7 +181,7 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                   <div className="min-w-[80px] text-left font-black text-brand-700">
-                    {formatPrice(r.product.price * r.qty)}
+                    {formatPrice(linePrice * r.qty)}
                   </div>
                   <button
                     onClick={() => removeFromCart(r.lineId)}

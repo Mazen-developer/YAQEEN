@@ -7,15 +7,16 @@ import { useCart } from "./CartProvider";
 import { useToast } from "./ToastProvider";
 import { formatPrice } from "@/lib/format";
 import { categoryOf } from "@/lib/categories";
+import { getPriceRange } from "@/lib/productOptions";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const router = useRouter();
 
-  const hasOptions =
-    !!(product.options?.colors?.length || product.options?.sizes?.length || product.options?.types?.length);
+  const hasOptions = !!product.options?.list?.length;
   const minQuantity = Math.max(1, product.options?.minQuantity ?? 1);
+  const { min, hasRange } = getPriceRange(product);
 
   function quickAdd(goToCheckout: boolean) {
     if (hasOptions) {
@@ -51,7 +52,7 @@ export default function ProductCard({ product }: { product: Product }) {
         </span>
 
         <span className="relative -rotate-2 self-start rounded-l-sm rounded-r-lg border-[1.5px] border-dashed border-brand-600/60 bg-white px-3.5 py-1.5 pl-2.5 text-sm font-black text-brand-700">
-          {formatPrice(product.price)}
+          {hasRange ? `يبدأ من ${formatPrice(min)}` : formatPrice(min)}
         </span>
 
         <div className="mt-auto flex gap-2">

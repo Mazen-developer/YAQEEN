@@ -2,6 +2,7 @@ import { Redis } from "@upstash/redis";
 import fs from "fs/promises";
 import path from "path";
 import type { Order, Product, ProductOptions, Review } from "./types";
+import { parseProductOptions } from "./productOptions";
 
 /**
  * تخزين البيانات:
@@ -65,25 +66,16 @@ function cryptoRandomId(): string {
 /* ---------- helpers ---------- */
 
 export const DEFAULT_PRODUCT_OPTIONS: ProductOptions = {
-  colors: [],
-  sizes: [],
-  types: [],
+  list: [],
+  variants: [],
   minQuantity: 1,
 };
 
+/** بيتحقق من شكل الـ options ويهاجر أي شكل قديم (colors/sizes/types) تلقائيًا */
 function normalizeProduct(product: Product): Product {
-  const options = product.options ?? DEFAULT_PRODUCT_OPTIONS;
   return {
     ...product,
-    options: {
-      colors: Array.isArray(options.colors) ? options.colors : [],
-      sizes: Array.isArray(options.sizes) ? options.sizes : [],
-      types: Array.isArray(options.types) ? options.types : [],
-      minQuantity:
-        Number.isFinite(options.minQuantity) && options.minQuantity > 0
-          ? Math.floor(options.minQuantity)
-          : 1,
-    },
+    options: parseProductOptions(product.options),
   };
 }
 

@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product, SelectedVariant } from "@/lib/types";
+import { getVariantPrice } from "@/lib/productOptions";
+import { formatPrice } from "@/lib/format";
 import { useCart } from "./CartProvider";
 import { useToast } from "./ToastProvider";
 
@@ -11,36 +13,39 @@ export default function ProductActions({ product }: { product: Product }) {
   const { showToast } = useToast();
   const router = useRouter();
 
-  const options = product.options;
-  const hasColors = !!options?.colors?.length;
-  const hasSizes = !!options?.sizes?.length;
-  const hasTypes = !!options?.types?.length;
-  const minQuantity = Math.max(1, options?.minQuantity ?? 1);
+  const optionList = product.options?.list ?? [];
+  const hasOptions = optionList.length > 0;
+  const minQuantity = Math.max(1, product.options?.minQuantity ?? 1);
 
-  const [color, setColor] = useState<string | undefined>(hasColors ? options!.colors[0].name : undefined);
-  const [size, setSize] = useState<string | undefined>(hasSizes ? options!.sizes[0] : undefined);
-  const [type, setType] = useState<string | undefined>(hasTypes ? options!.types[0] : undefined);
+  const [selection, setSelection] = useState<SelectedVariant>(() => {
+    const initial: SelectedVariant = {};
+    for (const option of optionList) {
+      if (option.values.length) initial[option.name] = option.values[0].value;
+    }
+    return initial;
+  });
   const [qty, setQty] = useState(minQuantity);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const variant: SelectedVariant | undefined = useMemo(() => {
-    if (!hasColors && !hasSizes && !hasTypes) return undefined;
-    return { color, size, type };
-  }, [color, size, type, hasColors, hasSizes, hasTypes]);
+  const variant: SelectedVariant | undefined = hasOptions ? selection : undefined;
+
+  const currentPrice = useMemo(
+    () => getVariantPrice(product, variant),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [product, JSON.stringify(variant)]
+  );
+
+  function selectValue(optionName: string, value: string) {
+    setSelection((prev) => ({ ...prev, [optionName]: value }));
+  }
 
   function validate(): boolean {
-    if (hasColors && !color) {
-      setError("من فضلك اختر اللون");
-      return false;
-    }
-    if (hasSizes && !size) {
-      setError("من فضلك اختر المقاس");
-      return false;
-    }
-    if (hasTypes && !type) {
-      setError("من فضلك اختر النوع");
-      return false;
+    for (const option of optionList) {
+      if (!selection[option.name]) {
+        setError(`من فضلك اختر ${option.name}`);
+        return false;
+      }
     }
     if (!Number.isFinite(qty) || qty < minQuantity) {
       setError(`أقل كمية للطلب هي ${minQuantity}`);
@@ -61,79 +66,56 @@ export default function ProductActions({ product }: { product: Product }) {
 
   return (
     <div className="mt-2 flex flex-col gap-4">
-      {hasColors && (
-        <div>
-          <div className="mb-1.5 text-sm font-bold">اللون</div>
-          <div className="flex flex-wrap gap-2">
-            {options!.colors.map((c) => (
-              <button
-                key={c.name}
-                type="button"
-                onClick={() => setColor(c.name)}
-                aria-pressed={color === c.name}
-                title={c.name}
-                className={`flex h-9 items-center gap-2 rounded-full border-2 px-3 text-xs font-bold transition ${
-                  color === c.name
-                    ? "border-brand-600 bg-brand-50 text-brand-700"
-                    : "border-line text-neutral-600 hover:border-brand-400"
-                }`}
-              >
-                <span
-                  className="h-4 w-4 rounded-full border border-black/15"
-                  style={{ backgroundColor: c.hex || "#f0428d" }}
-                />
-                {c.name}
-              </button>
-            ))}
-          </div>
+      <span className="relative -rotate-2 self-start rounded-l-sm rounded-r-lg border-[1.5px] border-dashed border-brand-600/60 bg-white px-4 py-2 text-lg font-black text-brand-700">
+        {formatPrice(currentPrice)}
+      </span>
+
+      {product.description ? (
+        <div className="border-t border-line pt-4">
+          <h2 className="mb-2 text-sm font-bold text-black">الوصف</h2>
+          <p className="whitespace-pre-line leading-relaxed text-neutral-700">
+            {product.description}
+          </p>
+        </div>
+      ) : (
+        <div className="border-t border-line pt-4">
+          <h2 className="mb-2 text-sm font-bold text-black">الوصف</h2>
+          <p className="text-sm text-neutral-500">لا يوجد وصف لهذا المنتج حاليًا.</p>
         </div>
       )}
 
-      {hasSizes && (
-        <div>
-          <div className="mb-1.5 text-sm font-bold">المقاس</div>
+      {optionList.map((option) => (
+        <div key={option.name}>
+          <div className="mb-1.5 text-sm font-bold">{option.name}</div>
           <div className="flex flex-wrap gap-2">
-            {options!.sizes.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSize(s)}
-                aria-pressed={size === s}
-                className={`rounded-lg border-2 px-3.5 py-1.5 text-sm font-bold transition ${
-                  size === s
-                    ? "border-brand-600 bg-brand-600 text-white"
-                    : "border-line text-neutral-700 hover:border-brand-400"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+            {option.values.map((v) => {
+              const active = selection[option.name] === v.value;
+              return (
+                <button
+                  key={v.value}
+                  type="button"
+                  onClick={() => selectValue(option.name, v.value)}
+                  aria-pressed={active}
+                  title={v.value}
+                  className={`flex h-9 items-center gap-2 rounded-full border-2 px-3.5 text-xs font-bold transition ${
+                    active
+                      ? "border-brand-600 bg-brand-50 text-brand-700"
+                      : "border-line text-neutral-600 hover:border-brand-400"
+                  }`}
+                >
+                  {v.hex && (
+                    <span
+                      className="h-4 w-4 rounded-full border border-black/15"
+                      style={{ backgroundColor: v.hex }}
+                    />
+                  )}
+                  {v.value}
+                </button>
+              );
+            })}
           </div>
         </div>
-      )}
-
-      {hasTypes && (
-        <div>
-          <div className="mb-1.5 text-sm font-bold">النوع</div>
-          <div className="flex flex-wrap gap-2">
-            {options!.types.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setType(t)}
-                aria-pressed={type === t}
-                className={`rounded-lg border-2 px-3.5 py-1.5 text-sm font-bold transition ${
-                  type === t
-                    ? "border-brand-600 bg-brand-600 text-white"
-                    : "border-line text-neutral-700 hover:border-brand-400"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      ))}
 
       <div>
         <div className="mb-1.5 text-sm font-bold">

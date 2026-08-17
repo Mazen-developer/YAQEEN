@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getProduct, getReviews } from "@/lib/db";
-import { formatPrice } from "@/lib/format";
 import { categoryOf } from "@/lib/categories";
 import ProductActions from "@/components/ProductActions";
 import ReviewSection from "@/components/ReviewSection";
@@ -57,21 +56,6 @@ export default async function ProductPage({
           <h1 className="font-display text-3xl text-black">{product.name}</h1>
 
           <RatingSummary reviews={reviews} />
-
-          <span className="relative -rotate-2 self-start rounded-l-sm rounded-r-lg border-[1.5px] border-dashed border-brand-600/60 bg-white px-4 py-2 text-lg font-black text-brand-700">
-            {formatPrice(product.price)}
-          </span>
-
-          <div className="mt-2 border-t border-line pt-4">
-            <h2 className="mb-2 text-sm font-bold text-black">الوصف</h2>
-            {product.description ? (
-              <p className="whitespace-pre-line leading-relaxed text-neutral-700">
-                {product.description}
-              </p>
-            ) : (
-              <p className="text-sm text-neutral-500">لا يوجد وصف لهذا المنتج حاليًا.</p>
-            )}
-          </div>
 
           <ProductActions product={product} />
         </div>

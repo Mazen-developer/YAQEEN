@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import { categoryOf } from "@/lib/categories";
 import { variantLabel } from "@/lib/cart";
+import { getPriceRange } from "@/lib/productOptions";
 import { useAdminPassword } from "@/lib/useAdminPassword";
 import type { Order, Product } from "@/lib/types";
 
@@ -127,7 +128,9 @@ export default function AdminDashboard({ password }: { password: string }) {
         </div>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
-          {products.map((p) => (
+          {products.map((p) => {
+            const { min, max, hasRange } = getPriceRange(p);
+            return (
             <div key={p.id} className="overflow-hidden rounded-xl border border-line bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.image} alt={p.name} className="aspect-square w-full object-cover" />
@@ -137,25 +140,18 @@ export default function AdminDashboard({ password }: { password: string }) {
                   {categoryOf(p.category)}
                 </span>
                 <span className="-rotate-2 inline-block rounded-l-sm rounded-r-lg border-[1.5px] border-dashed border-brand-600/60 bg-white px-3 py-1 text-xs font-black">
-                  {formatPrice(p.price)}
+                  {hasRange ? `${formatPrice(min)} - ${formatPrice(max)}` : formatPrice(p.price)}
                 </span>
-                {(p.options?.colors?.length || p.options?.sizes?.length || p.options?.types?.length) ? (
+                {p.options?.list?.length ? (
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    {!!p.options?.colors?.length && (
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
-                        {p.options.colors.length} ألوان
+                    {p.options.list.map((opt) => (
+                      <span
+                        key={opt.name}
+                        className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-600"
+                      >
+                        {opt.values.length} {opt.name}
                       </span>
-                    )}
-                    {!!p.options?.sizes?.length && (
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
-                        {p.options.sizes.length} مقاسات
-                      </span>
-                    )}
-                    {!!p.options?.types?.length && (
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
-                        {p.options.types.length} أنواع
-                      </span>
-                    )}
+                    ))}
                   </div>
                 ) : null}
                 {(p.options?.minQuantity ?? 1) > 1 && (
@@ -179,7 +175,8 @@ export default function AdminDashboard({ password }: { password: string }) {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

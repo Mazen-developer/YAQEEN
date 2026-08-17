@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createOrder, getOrders, getProducts } from "@/lib/db";
 import { ADMIN_PASSWORD } from "@/lib/config";
-import type { OrderItem, SelectedVariant } from "@/lib/types";
+import { getVariantPrice, sanitizeCombination } from "@/lib/productOptions";
+import type { OrderItem, Product, SelectedVariant } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
   const password = req.headers.get("x-admin-password");
@@ -12,13 +13,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ orders });
 }
 
-function parseVariant(raw: unknown): SelectedVariant | undefined {
+/** يتأكد إن التركيبة القادمة من العميل مطابقة فعليًا لـ Options المنتج، عشان محدش يزوّر تركيبة أو سعر */
+function parseVariant(raw: unknown, product: Product): SelectedVariant | undefined {
   if (!raw || typeof raw !== "object") return undefined;
-  const v = raw as Record<string, unknown>;
-  const variant: SelectedVariant = {};
-  if (typeof v.color === "string" && v.color.trim()) variant.color = v.color.trim();
-  if (typeof v.size === "string" && v.size.trim()) variant.size = v.size.trim();
-  if (typeof v.type === "string" && v.type.trim()) variant.type = v.type.trim();
+  const list = product.options?.list ?? [];
+  const variant = sanitizeCombination(raw as Record<string, unknown>, list);
   return Object.keys(variant).length ? variant : undefined;
 }
 
@@ -60,12 +59,13 @@ export async function POST(req: NextRequest) {
     .map((line: { id: string; qty: number; variant?: unknown }) => {
       const product = products.find((p) => p.id === line.id);
       if (!product || !line.qty || line.qty <= 0) return null;
+      const variant = parseVariant(line.variant, product);
       const item: OrderItem = {
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: getVariantPrice(product, variant),
         qty: line.qty,
-        variant: parseVariant(line.variant),
+        variant,
       };
       return item;
     })

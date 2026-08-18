@@ -46,6 +46,7 @@ export default async function ProductPage({
             alt={product.name}
             className="aspect-square w-full"
             showDots
+            enableZoom
           />
         </div>
 

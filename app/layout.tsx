@@ -44,6 +44,7 @@ export default function RootLayout({
             <footer className="py-8 text-center text-xs text-neutral-500">
               <SocialLinks />
               <div className="mt-4">تابعونا</div>
+              <div className="mt-2 text-neutral-400">by: Rawan Al-Iraqi</div>
             </footer>
           </CartProvider>
         </ToastProvider>

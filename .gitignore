@@ -1,6 +1,2 @@
-node_modules
-.next
-out
-.env*.local
-npm-debug.log*
-data/db.json.bak
+node_modules/
+.next/

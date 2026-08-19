@@ -7,8 +7,12 @@ export default function Header() {
   const { count } = useCart();
 
   return (
-    <header className="sticky top-0 z-50 bg-gradient-to-l from-brand-600 via-brand-500 to-brand-400 px-6 py-4 text-white shadow-md">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
+    <header className="sticky top-0 z-50 bg-gradient-to-l from-brand-600 via-brand-500 to-brand-400 text-white shadow-md">
+      <div className="bg-black/15 px-6 py-1.5 text-center text-xs font-bold tracking-wide">
+        متنسوش بابا في دعواتكم 🤍
+      </div>
+
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-white/50 bg-white font-display text-xl font-bold text-black">
             <img className="rounded-full" src="logo.jpg" alt="logo" />

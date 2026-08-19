@@ -23,15 +23,26 @@ export default function Header() {
           </div>
         </Link>
 
-        <Link
-          href="/checkout"
-          className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-brand-700 transition hover:bg-brand-50"
-        >
-          🛍️ السلة
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-xs text-white">
-            {count}
-          </span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://wa.me/201272637415"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-full border-[1.5px] border-white bg-transparent px-4 py-2 text-sm font-black text-white transition hover:bg-white/10"
+          >
+            ✨ تصميم خاص
+          </a>
+
+          <Link
+            href="/checkout"
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-brand-700 transition hover:bg-brand-50"
+          >
+            🛍️ السلة
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-xs text-white">
+              {count}
+            </span>
+          </Link>
+        </div>
       </div>
     </header>
   );
